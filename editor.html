@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TerraRiff Chart Editor</title>
+  <meta name="description" content="TerraRiff: Chart Editor (MVP)." />
+
+  <style>
+    :root{
+      --bg:#0b0b0f;
+      --panel:rgba(18,18,26,.82);
+      --text:#eaeaf2;
+      --muted:#a7a7b6;
+      --line:#232335;
+      --accent:#6aa6ff;
+      --shadow: rgba(0,0,0,.45);
+
+      --container:1120px;
+      --radius:16px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background: var(--bg);
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* контейнер по центру */
+    .container{
+      max-width:var(--container);
+      margin:0 auto;
+      padding:14px 20px;
+      width:100%;
+    }
+
+    /* верхняя панель */
+    header{
+      position:sticky;
+      top:0;
+      z-index:50;
+      backdrop-filter: blur(10px);
+      background:rgba(11,11,15,.7);
+      border-bottom:1px solid var(--line);
+    }
+
+    .head{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      max-width:var(--container);
+      margin:0 auto;
+      padding:14px 20px;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 180px;
+    }
+    .brand h1{
+      margin:0;
+      font-size:14px;
+      text-transform:uppercase;
+      color:var(--muted);
+      letter-spacing:.6px;
+      font-weight:900;
+    }
+    .brand small{ font-size:12px; color:var(--muted); }
+
+    .headerActions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    /* общая карточка */
+    .card{
+      background:var(--panel);
+      backdrop-filter: blur(10px);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow: 0 16px 40px var(--shadow);
+      padding:18px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-height:0;
+    }
+
+    /* кнопки */
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:12px;
+
+      border:1px solid var(--line);
+      background:rgba(15,15,22,.6);
+
+      color:var(--text);
+      text-decoration:none;
+      font-size:13px;
+      white-space:nowrap;
+      transition:.15s;
+      cursor:pointer;
+      user-select:none;
+    }
+    .btn:hover{ transform:translateY(-2px); filter:brightness(1.1); }
+    .btn.primary{ border-color:var(--accent); }
+    .btn:disabled,
+    .btn.disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      pointer-events:none;
+      transform:none;
+      filter:none;
+    }
+
+    /* рабочая зона: слева настройки, справа канвас */
+    main{
+      width:100%;
+      flex:1;
+      min-height:0;
+      max-width:var(--container);
+      margin:0 auto;
+      padding:18px 20px 20px;
+      display:grid;
+      grid-template-columns: 380px 1fr;
+      gap:16px;
+      align-items:stretch;
+    }
+
+    /* типографика */
+    h2{
+      margin:0 0 2px 0;
+      font-size:11px;
+      text-transform:uppercase;
+      color:var(--muted);
+      letter-spacing:.55px;
+      font-weight:900;
+    }
+
+    label{
+      font-size:12px;
+      color:var(--muted);
+      display:block;
+      margin:8px 0 6px;
+    }
+
+    /* инпуты */
+    input[type="file"],
+    input[type="number"],
+    input[type="text"],
+    select{
+      width:100%;
+      background:rgba(15,15,22,.6);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+    }
+
+    input[type="range"]{ width:100%; }
+    input[type="file"]{ padding:9px 10px; }
+
+    input:focus, select:focus{
+      outline:2px solid rgba(106,166,255,.55);
+      outline-offset:2px;
+    }
+
+    .row{ display:flex; gap:10px; }
+    .row > *{ flex:1; }
+
+    .muted{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+    }
+
+    .kbd{
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:8px;
+      border:1px solid var(--line);
+      background:rgba(15,15,22,.6);
+      color:var(--text);
+      font-size:12px;
+      margin:0 2px;
+    }
+
+    hr{
+      border:none;
+      border-top:1px solid rgba(35,35,53,.75);
+      margin:8px 0;
+    }
+
+    /* верх канваса: скраб + инфа */
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .toolbar .left,
+    .toolbar .right{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .toolbar input[type="range"]{ width:260px; }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(0,0,0,.18);
+      color:var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .pill strong{ color:var(--text); font-weight:650; }
+
+    /* рамка под канвас */
+    .stageShell{
+      flex:1;
+      min-height:0;
+      border-radius:12px;
+      border:1px solid var(--line);
+      overflow:hidden;
+      background:
+        radial-gradient(900px 500px at 20% 0%, rgba(106,166,255,.10), transparent 60%),
+        radial-gradient(700px 500px at 90% 20%, rgba(173,76,91,.08), transparent 55%),
+        #07070b;
+      display:flex;
+      box-shadow: 0 12px 26px rgba(0,0,0,.35) inset;
+    }
+
+    #stage{
+      width:100%;
+      height:100%;
+      display:block;
+      background:transparent;
+      outline:none;
+    }
+
+    /* фокус на канвасе, чтобы было понятно что хоткеи активны */
+    #stage:focus{
+      outline:2px solid rgba(106,166,255,.6);
+      outline-offset:-2px;
+    }
+
+    .status{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      font-size:12px;
+      color:var(--muted);
+      flex-wrap:wrap;
+    }
+    .status strong{ color:var(--text); font-weight:650; }
+
+    /* низ */
+    footer{
+      width:100%;
+      border-top:1px solid var(--line);
+      background:rgba(11,11,15,.45);
+      backdrop-filter: blur(10px);
+    }
+    .footerRow{
+      max-width:var(--container);
+      margin:0 auto;
+      padding:14px 20px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:12px;
+    }
+    footer a{
+      color:var(--muted);
+      text-decoration:none;
+    }
+    footer a:hover{ text-decoration:underline; }
+
+    /* мобилка */
+    @media (max-width: 900px){
+      .head{ padding:14px 16px; }
+      main{
+        grid-template-columns:1fr;
+        padding:16px;
+      }
+      .footerRow{ padding:14px 16px; }
+      .toolbar input[type="range"]{ width:220px; }
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="head">
+    <div class="brand">
+      <h1>TerraRiff</h1>
+      <small>Chart Editor (MVP)</small>
+    </div>
+
+    <div class="headerActions">
+      <a class="btn" href="./index.html" title="Back to title page">Home</a>
+      <button id="exportBtn" class="btn primary" disabled>Export SONG.json</button>
+      <button id="importBtn" class="btn">Import SONG.json</button>
+      <input id="importFile" type="file" accept=".json,application/json" style="display:none;">
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Song</h2>
+
+    <label>Track (.ogg or .wav)</label>
+    <input id="audioFile" type="file" accept=".ogg,audio/ogg,.wav,audio/wav">
+
+    <div class="row">
+      <div>
+        <label>Title</label>
+        <input id="title" type="text" placeholder="Song title...">
+      </div>
+      <div>
+        <label>Artist</label>
+        <input id="artist" type="text" placeholder="Artist...">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Difficulty (1-10)</label>
+        <input id="difficulty" type="number" step="1" min="1" max="10" value="3">
+      </div>
+      <div>
+        <label>Lead-in (sec)</label>
+        <input id="leadIn" type="number" step="0.01" min="0" value="1.00">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>BPM (optional, for snap)</label>
+        <input id="bpm" type="number" step="0.01" min="1" placeholder="e.g. 120">
+      </div>
+      <div>
+        <label>Snap</label>
+        <select id="snap">
+          <option value="off">Off</option>
+          <option value="1/4">1/4</option>
+          <option value="1/8">1/8</option>
+          <option value="1/16">1/16</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Play rate</label>
+    <select id="rate">
+      <option value="0.5">0.5x</option>
+      <option value="0.75">0.75x</option>
+      <option value="1" selected>1.0x</option>
+      <option value="1.25">1.25x</option>
+    </select>
+
+    <div class="row" style="margin-top:10px;">
+      <button id="playBtn" class="btn" disabled>Play / Pause</button>
+      <button id="stopBtn" class="btn" disabled>Stop</button>
+    </div>
+
+    <div class="muted">
+      <div>Click the editor (canvas) to enable hotkeys.</div>
+      <div><span class="kbd">S</span><span class="kbd">D</span><span class="kbd">J</span><span class="kbd">K</span> place notes (layout-independent).</div>
+      <div>Hold a key to create a sustain (duration).</div>
+      <div><span class="kbd">Space</span> play/pause. <span class="kbd">Backspace</span> undo. <span class="kbd">Shift</span>+<span class="kbd">Backspace</span> redo.</div>
+      <div>Click near a note head to delete it.</div>
+    </div>
+
+    <hr>
+
+    <h2>Chart</h2>
+    <div class="row">
+      <button id="clearBtn" class="btn" disabled>Clear notes</button>
+    </div>
+
+    <div class="muted" id="chartStats">Notes: 0 • Sustains: 0</div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <div class="left">
+        <span class="muted">Scrub</span>
+        <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" disabled>
+        <span id="timeLabel" class="muted">0.000s</span>
+        <span class="pill">Export format: <strong>meta + chart</strong></span>
+      </div>
+      <div class="right"></div>
+    </div>
+
+    <div class="stageShell">
+      <canvas id="stage"></canvas>
+    </div>
+
+    <div class="status">
+      <div>Audio: <strong id="audioStatus">not loaded</strong></div>
+      <div>Mode: <strong id="modeStatus">idle</strong></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footerRow">
+    <div>Made by Wurper</div>
+    <div>TerraRiff • Editor • v0.x • MVP</div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const LANES = 4;
+  const LANE_CODES = ["KeyS", "KeyD", "KeyJ", "KeyK"]; // e.code не зависит от раскладки
+
+  const HITLINE_Y_FRAC = 0.78;
+  const PAD = 18;
+
+  const HOLD_TAP_THRESHOLD = 0.180;   // короче = тап, дольше = сустейн
+  const DELETE_RADIUS_SEC = 0.09;     // окно по времени при клике для удаления
+
+  // чисто визуальные константы предпросмотра
+  const SCROLL_SPEED_PX_PER_SEC = 520;
+  const NOTE_SIZE_PX = 40;
+
+  const LANE_COLORS = [
+    { r:0xAB, g:0x95, b:0x4B }, // S
+    { r:0x4B, g:0x6D, b:0xAB }, // D
+    { r:0x4C, g:0xAF, b:0x50 }, // J
+    { r:0xAD, g:0x4C, b:0x5B }  // K
+  ];
+
+  const canvas = document.getElementById("stage");
+  const ctx = canvas.getContext("2d");
+
+  const audioFile = document.getElementById("audioFile");
+  const playBtn = document.getElementById("playBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const scrub = document.getElementById("scrub");
+  const timeLabel = document.getElementById("timeLabel");
+  const bpmInput = document.getElementById("bpm");
+  const snapSel = document.getElementById("snap");
+  const rateSel = document.getElementById("rate");
+  const audioStatus = document.getElementById("audioStatus");
+  const modeStatus = document.getElementById("modeStatus");
+  const chartStats = document.getElementById("chartStats");
+
+  const titleInput = document.getElementById("title");
+  const artistInput = document.getElementById("artist");
+  const difficultyInput = document.getElementById("difficulty");
+  const leadInInput = document.getElementById("leadIn");
+
+  const importBtn = document.getElementById("importBtn");
+  const importFile = document.getElementById("importFile");
+
+  let audioCtx = null;
+  let audioBuffer = null;
+  let sourceNode = null;
+
+  // тайминги воспроизведения
+  let startedAt = 0;     // audioCtx.currentTime в момент старта
+  let pausedAt = 0;      // позиция трека (сек), когда стоим/пауза
+  let isPlaying = false;
+  let playRate = 1.0;
+
+  // ноты: { time, lane, duration }
+  let notes = [];
+  let undoStack = [];
+  let redoStack = [];
+
+  // для сустейнов и подсветки колец на хитлайне
+  let holdStart = Array(LANES).fill(null);
+  let keyDown = Array(LANES).fill(false);
+
+  // хоткеи только когда канвас в фокусе
+  let editorActive = false;
+  canvas.tabIndex = 0;
+
+  function isTypingNow(){
+    const el = document.activeElement;
+    if (!el) return false;
+
+    const tag = (el.tagName || "").toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || el.isContentEditable;
+  }
+
+  function updateModeLabel(){
+    if (!audioBuffer){
+      modeStatus.textContent = "idle";
+      return;
+    }
+
+    const base = isPlaying ? "playing" : "ready";
+    modeStatus.textContent = editorActive ? `${base} (editor)` : base;
+  }
+
+  canvas.addEventListener("focus", () => {
+    editorActive = true;
+    updateModeLabel();
+  });
+
+  canvas.addEventListener("blur", () => {
+    editorActive = false;
+    updateModeLabel();
+
+    // на выходе из фокуса сбрасываем "залипшие" состояния
+    for (let i = 0; i < LANES; i++){
+      keyDown[i] = false;
+      holdStart[i] = null;
+    }
+  });
+
+  // клик по канвасу = забрать фокус (и хоткеи)
+  canvas.addEventListener("pointerdown", () => {
+    canvas.focus();
+  });
+
+  // если окно потеряло фокус, тоже сбрасываем
+  window.addEventListener("blur", () => {
+    for (let i = 0; i < LANES; i++){
+      keyDown[i] = false;
+      holdStart[i] = null;
+    }
+  });
+
+  function resizeCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  function ensureAudioCtx(){
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  function getDuration(){
+    return audioBuffer ? audioBuffer.duration : 0;
+  }
+
+  function getTrackTime(){
+    if (!audioCtx) return 0;
+    if (!isPlaying) return pausedAt;
+    return (audioCtx.currentTime - startedAt) * playRate + pausedAt;
+  }
+
+  function setTrackTime(t){
+    const dur = getDuration();
+    const clamped = Math.max(0, Math.min(t, dur));
+    pausedAt = clamped;
+
+    // если играем, то перезапускаем с новой позиции
+    if (isPlaying){
+      stopPlayback(true);
+      startPlayback();
+    }
+
+    updateScrubUI();
+  }
+
+  function getSnapStep(){
+    const mode = snapSel.value;
+    if (mode === "off") return 0;
+
+    const bpm = parseFloat(bpmInput.value);
+    if (!isFinite(bpm) || bpm <= 0) return 0;
+
+    const beat = 60 / bpm;
+    if (mode === "1/4") return beat;
+    if (mode === "1/8") return beat / 2;
+    if (mode === "1/16") return beat / 4;
+    return 0;
+  }
+
+  function snapTime(t){
+    const step = getSnapStep();
+    if (step <= 0) return t;
+    return Math.round(t / step) * step;
+  }
+
+  function round3(x){
+    return Math.round(x * 1000) / 1000;
+  }
+
+  // undo/redo: храним снепшоты notes (не самый красивый способ, но стабильный)
+  function pushUndo(){
+    undoStack.push(JSON.stringify(notes));
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+  }
+
+  function undo(){
+    if (undoStack.length === 0) return;
+    redoStack.push(JSON.stringify(notes));
+    notes = JSON.parse(undoStack.pop());
+    updateStatsUI();
+  }
+
+  function redo(){
+    if (redoStack.length === 0) return;
+    undoStack.push(JSON.stringify(notes));
+    notes = JSON.parse(redoStack.pop());
+    updateStatsUI();
+  }
+
+  function enableControls(ready){
+    playBtn.disabled = !ready;
+    stopBtn.disabled = !ready;
+    exportBtn.disabled = !ready;
+    clearBtn.disabled = !ready;
+    scrub.disabled = !ready;
+  }
+
+  async function loadAudio(file){
+    ensureAudioCtx();
+
+    const arr = await file.arrayBuffer();
+    audioBuffer = await audioCtx.decodeAudioData(arr);
+
+    pausedAt = 0;
+    isPlaying = false;
+    sourceNode = null;
+    startedAt = 0;
+
+    audioStatus.textContent = `${file.name} (${audioBuffer.duration.toFixed(2)}s)`;
+
+    enableControls(true);
+
+    scrub.max = audioBuffer.duration.toString();
+    scrub.value = "0";
+    timeLabel.textContent = "0.000s";
+
+    // автозаполнение названия, если пусто
+    if (!titleInput.value.trim()){
+      titleInput.value = file.name.replace(/\.[^.]+$/, "");
+    }
+
+    updateModeLabel();
+    updateStatsUI();
+  }
+
+  function startPlayback(){
+    if (!audioCtx || !audioBuffer) return;
+    if (isPlaying) return;
+
+    playRate = parseFloat(rateSel.value) || 1;
+
+    sourceNode = audioCtx.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    sourceNode.playbackRate.value = playRate;
+    sourceNode.connect(audioCtx.destination);
+
+    startedAt = audioCtx.currentTime;
+    sourceNode.start(0, pausedAt);
+
+    isPlaying = true;
+    updateModeLabel();
+
+    sourceNode.onended = () => {
+      if (!isPlaying) return;
+      stopPlayback(false);
+      setTrackTime(getDuration());
+      modeStatus.textContent = "ended";
+    };
+  }
+
+  function stopPlayback(keepTime){
+    if (!audioCtx) return;
+
+    if (sourceNode){
+      try { sourceNode.onended = null; sourceNode.stop(); } catch {}
+      try { sourceNode.disconnect(); } catch {}
+      sourceNode = null;
+    }
+
+    if (isPlaying){
+      const t = getTrackTime();
+      isPlaying = false;
+      if (!keepTime) pausedAt = t;
+    }
+
+    updateModeLabel();
+  }
+
+  function togglePlay(){
+    if (!audioBuffer) return;
+    ensureAudioCtx();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+
+    if (isPlaying) stopPlayback(false);
+    else startPlayback();
+  }
+
+  function sortNotes(){
+    notes.sort((a, b) => (a.time === b.time ? a.lane - b.lane : a.time - b.time));
+    updateStatsUI();
+  }
+
+  function addTap(lane, t){
+    pushUndo();
+    notes.push({ time: round3(snapTime(t)), lane, duration: 0 });
+    sortNotes();
+  }
+
+  function addHold(lane, tStart, tEnd){
+    const a = snapTime(Math.min(tStart, tEnd));
+    const b = snapTime(Math.max(tStart, tEnd));
+    const dur = Math.max(0, b - a);
+
+    pushUndo();
+    notes.push({ time: round3(a), lane, duration: round3(dur) });
+    sortNotes();
+  }
+
+  function deleteNearestNoteAt(lane, t, radiusSec){
+    let bestI = -1;
+    let bestAbs = Infinity;
+
+    for (let i = 0; i < notes.length; i++){
+      const n = notes[i];
+      if (n.lane !== lane) continue;
+
+      const abs = Math.abs(n.time - t);
+      if (abs <= radiusSec && abs < bestAbs){
+        bestAbs = abs;
+        bestI = i;
+      }
+    }
+
+    if (bestI === -1) return false;
+
+    pushUndo();
+    notes.splice(bestI, 1);
+    updateStatsUI();
+    return true;
+  }
+
+  function slugify(s){
+    return (s || "")
+      .toLowerCase()
+      .trim()
+      .replace(/['"]/g, "")
+      .replace(/[^a-z0-9а-яё]+/gi, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 48) || "song";
+  }
+
+  function getAudioFileName(){
+    const f = audioFile.files && audioFile.files[0];
+    return f ? f.name : "";
+  }
+
+  function exportSongJson(){
+    sortNotes();
+
+    const titleVal = titleInput.value.trim();
+    const artistVal = artistInput.value.trim();
+
+    const bpmVal = parseFloat(bpmInput.value);
+    const bpmOut = (isFinite(bpmVal) && bpmVal > 0) ? bpmVal : 0;
+
+    const diffVal = parseInt(difficultyInput.value, 10);
+    const diffOut = (isFinite(diffVal) && diffVal > 0) ? diffVal : 0;
+
+    const leadInVal = Math.max(0, parseFloat(leadInInput.value) || 0);
+
+    const audioName = getAudioFileName();
+    const baseName = audioName ? audioName.replace(/\.[^.]+$/, "") : "";
+    const id = slugify(titleVal || baseName || "song");
+
+    // формат: meta + chart
+    const payload = {
+      meta: {
+        id,
+        title: titleVal || id,
+        artist: artistVal || "-",
+        difficulty: diffOut,
+        bpm: bpmOut,
+        leadIn: round3(leadInVal),
+        length: round3(getDuration() || 0),
+        audio: audioName || ""
+      },
+      chart: {
+        notes: notes.map(n => {
+          const out = { time: round3(n.time), lane: n.lane };
+          if (n.duration && n.duration > 0) out.duration = round3(n.duration);
+          return out;
+        })
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${id}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importSongJsonText(text){
+    let data;
+    try { data = JSON.parse(text); }
+    catch { return alert("JSON parse error"); }
+
+    if (!data) return alert("Bad JSON");
+
+    // поддерживаем 2 формата: { meta, chart:{notes} } или { notes }
+    let meta = null;
+    let noteArr = null;
+
+    if (data.chart && Array.isArray(data.chart.notes)){
+      meta = data.meta || null;
+      noteArr = data.chart.notes;
+    } else if (Array.isArray(data.notes)){
+      noteArr = data.notes;
+    } else {
+      return alert("Bad JSON: expected { meta, chart:{notes:[...] } } or { notes:[...] }");
+    }
+
+    if (meta){
+      if (meta.title != null) titleInput.value = String(meta.title);
+      if (meta.artist != null) artistInput.value = String(meta.artist);
+      if (meta.bpm != null) bpmInput.value = String(meta.bpm);
+      if (meta.difficulty != null) difficultyInput.value = String(meta.difficulty);
+      if (meta.leadIn != null) leadInInput.value = String(meta.leadIn);
+    }
+
+    const arr = [];
+    for (const n of noteArr){
+      if (!n) continue;
+
+      const time = Number(n.time);
+      const lane = Number(n.lane);
+      const duration = Number(n.duration || 0);
+
+      if (!isFinite(time) || !isFinite(lane)) continue;
+      if (lane < 0 || lane >= LANES) continue;
+
+      arr.push({
+        time: round3(time),
+        lane,
+        duration: round3(Math.max(0, duration))
+      });
+    }
+
+    pushUndo();
+    notes = arr;
+    sortNotes();
+  }
+
+  function updateScrubUI(){
+    if (!audioBuffer){
+      scrub.value = "0";
+      timeLabel.textContent = "0.000s";
+      return;
+    }
+
+    const t = getTrackTime();
+    scrub.value = String(t);
+    timeLabel.textContent = `${t.toFixed(3)}s`;
+  }
+
+  function updateStatsUI(){
+    const sustains = notes.filter(n => n.duration > 0).length;
+    chartStats.textContent = `Notes: ${notes.length} • Sustains: ${sustains}`;
+  }
+
+  function draw(){
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const fieldX = PAD;
+    const fieldY = PAD;
+    const fieldW = w - PAD * 2;
+    const fieldH = h - PAD * 2;
+
+    // фон канваса
+    ctx.fillStyle = "#0b0b12";
+    ctx.fillRect(0, 0, w, h);
+
+    // рабочее поле
+    ctx.fillStyle = "rgba(20,20,30,0.92)";
+    roundRect(ctx, fieldX, fieldY, fieldW, fieldH, 10);
+    ctx.fill();
+
+    const laneW = fieldW / LANES;
+    const hitY = fieldY + fieldH * HITLINE_Y_FRAC;
+
+    // полосы по лейнам
+    for (let i = 0; i < LANES; i++){
+      ctx.fillStyle = "rgba(30,30,45,0.75)";
+      ctx.fillRect(fieldX + i * laneW + 1, fieldY + 1, laneW - 2, fieldH - 2);
+    }
+
+    const t = getTrackTime();
+    const speed = SCROLL_SPEED_PX_PER_SEC;
+    const noteSize = NOTE_SIZE_PX;
+
+    // кольца на хитлайне (фидбек по нажатию)
+    for (let i = 0; i < LANES; i++){
+      const cx = fieldX + i * laneW + laneW / 2;
+      const down = keyDown[i] === true;
+      const y = hitY + (down ? 1 : 0);
+      const ringSize = Math.min(laneW - 8, noteSize + 12);
+      drawRing(cx, y, ringSize / 2, down ? "rgba(180,180,180,1)" : "rgba(255,255,255,1)", 3);
+    }
+
+    // сустейны (тела)
+    for (const n of notes){
+      if (n.duration <= 0) continue;
+
+      const lane = n.lane | 0;
+      const cx = fieldX + lane * laneW + laneW / 2;
+
+      const headY = hitY - (n.time - t) * speed;
+      const tailY = hitY - ((n.time + n.duration) - t) * speed;
+
+      const top = Math.min(headY, tailY);
+      const bot = Math.max(headY, tailY);
+
+      if (bot < fieldY - 140 || top > fieldY + fieldH + 140) continue;
+
+      const bodyW = Math.max(6, noteSize / 3);
+      const c = LANE_COLORS[lane];
+      ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},0.75)`;
+      ctx.fillRect(cx - bodyW / 2, top, bodyW, Math.max(1, bot - top));
+    }
+
+    // головы нот
+    for (const n of notes){
+      const lane = n.lane | 0;
+      const cx = fieldX + lane * laneW + laneW / 2;
+      const y = hitY - (n.time - t) * speed;
+
+      if (y < fieldY - 140 || y > fieldY + fieldH + 140) continue;
+
+      const c = LANE_COLORS[lane];
+      drawFilledCircle(cx, y, noteSize / 2, `rgb(${c.r},${c.g},${c.b})`);
+      drawRing(cx, y, (noteSize / 2) + 3, "rgba(255,255,255,0.92)", 3);
+    }
+
+    // подсказка букв у хитлайна
+    ctx.fillStyle = "rgba(220,220,235,0.75)";
+    ctx.font = "12px system-ui, Segoe UI, Roboto, Arial";
+    ctx.fillText("S", fieldX + laneW * 0 + 12, hitY + 24);
+    ctx.fillText("D", fieldX + laneW * 1 + 12, hitY + 24);
+    ctx.fillText("J", fieldX + laneW * 2 + 12, hitY + 24);
+    ctx.fillText("K", fieldX + laneW * 3 + 12, hitY + 24);
+
+    // хитлайн
+    ctx.strokeStyle = "rgba(240,240,255,0.25)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(fieldX, hitY);
+    ctx.lineTo(fieldX + fieldW, hitY);
+    ctx.stroke();
+
+    updateScrubUI();
+    requestAnimationFrame(draw);
+  }
+
+  function drawFilledCircle(x, y, r, color){
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  function drawRing(x, y, r, color, thickness){
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = thickness;
+    ctx.stroke();
+  }
+
+  function roundRect(ctx2, x, y, w, h, r){
+    ctx2.beginPath();
+    ctx2.moveTo(x + r, y);
+    ctx2.arcTo(x + w, y, x + w, y + h, r);
+    ctx2.arcTo(x + w, y + h, x, y + h, r);
+    ctx2.arcTo(x, y + h, x, y, r);
+    ctx2.arcTo(x, y, x + w, y, r);
+    ctx2.closePath();
+  }
+
+  // хоткеи: только когда канвас активен и мы не печатаем в инпутах
+  document.addEventListener("keydown", (e) => {
+    if (e.repeat) return;
+    if (isTypingNow()) return;
+    if (!editorActive) return;
+
+    const code = e.code;
+
+    if (code === "Space"){
+      e.preventDefault();
+      togglePlay();
+      return;
+    }
+
+    if (code === "Backspace"){
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+      return;
+    }
+
+    const lane = LANE_CODES.indexOf(code);
+    if (lane === -1) return;
+
+    e.preventDefault();
+    keyDown[lane] = true;
+    if (!audioBuffer) return;
+
+    holdStart[lane] = getTrackTime();
+  }, true);
+
+  document.addEventListener("keyup", (e) => {
+    if (isTypingNow()) return;
+    if (!editorActive) return;
+
+    const lane = LANE_CODES.indexOf(e.code);
+    if (lane === -1) return;
+
+    e.preventDefault();
+    keyDown[lane] = false;
+    if (!audioBuffer) return;
+
+    const t0 = holdStart[lane];
+    holdStart[lane] = null;
+    if (t0 == null) return;
+
+    const t1 = getTrackTime();
+    const dur = Math.max(0, t1 - t0);
+
+    if (dur < HOLD_TAP_THRESHOLD) addTap(lane, t0);
+    else addHold(lane, t0, t1);
+  }, true);
+
+  // мышь: клик по ноте (примерно) = удалить
+  canvas.addEventListener("mousedown", (e) => {
+    if (!audioBuffer) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const w = rect.width;
+    const h = rect.height;
+
+    const fieldX = PAD;
+    const fieldY = PAD;
+    const fieldW = w - PAD * 2;
+    const fieldH = h - PAD * 2;
+
+    const laneW = fieldW / LANES;
+    const hitY = fieldY + fieldH * HITLINE_Y_FRAC;
+
+    const lane = Math.floor((mx - fieldX) / laneW);
+    if (lane < 0 || lane >= LANES) return;
+
+    const t = getTrackTime();
+    const speed = SCROLL_SPEED_PX_PER_SEC;
+    const timeGuess = t + (hitY - my) / speed;
+
+    if (deleteNearestNoteAt(lane, timeGuess, DELETE_RADIUS_SEC)) sortNotes();
+  });
+
+  audioFile.addEventListener("change", async () => {
+    const file = audioFile.files && audioFile.files[0];
+    if (!file) return;
+
+    try{
+      await loadAudio(file);
+    }catch (err){
+      console.error(err);
+      alert("Couldn't decode audio. Try another .ogg/.wav (or convert to WAV).");
+    }
+  });
+
+  playBtn.addEventListener("click", togglePlay);
+
+  stopBtn.addEventListener("click", () => {
+    stopPlayback(false);
+    setTrackTime(0);
+  });
+
+  exportBtn.addEventListener("click", exportSongJson);
+
+  clearBtn.addEventListener("click", () => {
+    if (!confirm("Clear all notes?")) return;
+    pushUndo();
+    notes = [];
+    updateStatsUI();
+  });
+
+  rateSel.addEventListener("change", () => {
+    if (isPlaying){
+      stopPlayback(true);
+      startPlayback();
+    } else {
+      playRate = parseFloat(rateSel.value) || 1;
+      updateModeLabel();
+    }
+  });
+
+  scrub.addEventListener("input", () => {
+    const t = parseFloat(scrub.value) || 0;
+    setTrackTime(t);
+  });
+
+  // импорт/экспорт json
+  importBtn.addEventListener("click", () => importFile.click());
+  importFile.addEventListener("change", async () => {
+    const f = importFile.files && importFile.files[0];
+    if (!f) return;
+
+    const text = await f.text();
+    importSongJsonText(text);
+    importFile.value = "";
+  });
+
+  enableControls(false);
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
