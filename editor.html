@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>TerraRiff Chart Editor</title>
-  <meta name="description" content="TerraRiff: Chart Editor (MVP)." />
+  <meta name="description" content="TerraRiff: Chart Editor" />
 
   <style>
     :root{
@@ -436,7 +436,7 @@
 <footer>
   <div class="footerRow">
     <div>Made by Wurper</div>
-    <div>TerraRiff • Editor • v0.x • MVP</div>
+    <div>TerraRiff • Editor • v0.5</div>
   </div>
 </footer>
 
@@ -866,7 +866,7 @@
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${id}.json`;
+    a.download = `song.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -1335,3 +1335,4 @@
 </script>
 </body>
 </html>
+
