@@ -397,8 +397,8 @@
       <div>Click the editor (canvas) to enable hotkeys.</div>
       <div><span class="kbd">S</span><span class="kbd">D</span><span class="kbd">J</span><span class="kbd">K</span> place notes (layout-independent).</div>
       <div>Hold a key to create a sustain (duration).</div>
+      <div><span class="kbd">LMB</span> place (hold = sustain), <span class="kbd">RMB</span> delete. Wheel = scroll time.</div>
       <div><span class="kbd">Space</span> play/pause. <span class="kbd">Backspace</span> undo. <span class="kbd">Shift</span>+<span class="kbd">Backspace</span> redo.</div>
-      <div>Click near a note head to delete it.</div>
     </div>
 
     <hr>
@@ -506,6 +506,14 @@
   let holdStart = Array(LANES).fill(null);
   let keyDown = Array(LANES).fill(false);
 
+  // постановка мышью
+  let mousePlace = {
+    active:false,
+    lane:-1,
+    t0:0,
+    t1:0
+  };
+
   // хоткеи только когда канвас в фокусе
   let editorActive = false;
   canvas.tabIndex = 0;
@@ -542,6 +550,8 @@
       keyDown[i] = false;
       holdStart[i] = null;
     }
+
+    mousePlace.active = false;
   });
 
   // клик по канвасу = забрать фокус (и хоткеи)
@@ -555,6 +565,7 @@
       keyDown[i] = false;
       holdStart[i] = null;
     }
+    mousePlace.active = false;
   });
 
   function resizeCanvas(){
@@ -619,6 +630,30 @@
 
   function round3(x){
     return Math.round(x * 1000) / 1000;
+  }
+
+  // координаты -> (lane, time)
+  function pickLaneAndTime(mx, my){
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+
+    const fieldX = PAD;
+    const fieldY = PAD;
+    const fieldW = w - PAD * 2;
+    const fieldH = h - PAD * 2;
+
+    const laneW = fieldW / LANES;
+    const hitY = fieldY + fieldH * HITLINE_Y_FRAC;
+
+    const lane = Math.floor((mx - fieldX) / laneW);
+    if (lane < 0 || lane >= LANES) return null;
+
+    const t = getTrackTime();
+    const speed = SCROLL_SPEED_PX_PER_SEC;
+    const timeGuess = t + (hitY - my) / speed;
+
+    return { lane, time: timeGuess, fieldX, fieldY, fieldW, fieldH, laneW, hitY };
   }
 
   // undo/redo: храним снепшоты notes (не самый красивый способ, но стабильный)
@@ -904,6 +939,48 @@
     chartStats.textContent = `Notes: ${notes.length} • Sustains: ${sustains}`;
   }
 
+  function drawSnapGrid(fieldX, fieldY, fieldW, fieldH, hitY, t){
+    const step = getSnapStep();
+    if (step <= 0) return;
+
+    const speed = SCROLL_SPEED_PX_PER_SEC;
+
+    // видимый диапазон времени (примерно)
+    const tTop = t + (hitY - fieldY) / speed;
+    const tBot = t + (hitY - (fieldY + fieldH)) / speed;
+    const tMin = Math.min(tTop, tBot) - step * 2;
+    const tMax = Math.max(tTop, tBot) + step * 2;
+
+    let k = Math.floor(tMin / step);
+    let guard = 0;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(fieldX, fieldY, fieldW, fieldH);
+    ctx.clip();
+
+    while (k * step <= tMax && guard++ < 10000){
+      const tt = k * step;
+      const y = hitY - (tt - t) * speed;
+
+      // чуть ярче на "четвертях" если snap мельче
+      const beat = 60 / (parseFloat(bpmInput.value) || 120);
+      const isBeat = beat > 0 ? (Math.abs((tt / beat) - Math.round(tt / beat)) < 1e-6) : false;
+
+      ctx.strokeStyle = isBeat ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+
+      ctx.beginPath();
+      ctx.moveTo(fieldX + 1, y);
+      ctx.lineTo(fieldX + fieldW - 1, y);
+      ctx.stroke();
+
+      k++;
+    }
+
+    ctx.restore();
+  }
+
   function draw(){
     const rect = canvas.getBoundingClientRect();
     const w = rect.width;
@@ -938,6 +1015,9 @@
     const speed = SCROLL_SPEED_PX_PER_SEC;
     const noteSize = NOTE_SIZE_PX;
 
+    // сетка по snap
+    drawSnapGrid(fieldX, fieldY, fieldW, fieldH, hitY, t);
+
     // кольца на хитлайне (фидбек по нажатию)
     for (let i = 0; i < LANES; i++){
       const cx = fieldX + i * laneW + laneW / 2;
@@ -945,6 +1025,30 @@
       const y = hitY + (down ? 1 : 0);
       const ringSize = Math.min(laneW - 8, noteSize + 12);
       drawRing(cx, y, ringSize / 2, down ? "rgba(180,180,180,1)" : "rgba(255,255,255,1)", 3);
+    }
+
+    // сустейн предпросмотра (мышь)
+    if (mousePlace.active && mousePlace.lane >= 0){
+      const lane = mousePlace.lane | 0;
+      const cx = fieldX + lane * laneW + laneW / 2;
+
+      const a = snapTime(Math.min(mousePlace.t0, mousePlace.t1));
+      const b = snapTime(Math.max(mousePlace.t0, mousePlace.t1));
+
+      const headY = hitY - (a - t) * speed;
+      const tailY = hitY - (b - t) * speed;
+
+      const top = Math.min(headY, tailY);
+      const bot = Math.max(headY, tailY);
+
+      const bodyW = Math.max(6, noteSize / 3);
+      const c = LANE_COLORS[lane];
+
+      ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},0.35)`;
+      ctx.fillRect(cx - bodyW / 2, top, bodyW, Math.max(1, bot - top));
+
+      drawFilledCircle(cx, headY, noteSize / 2, `rgba(${c.r},${c.g},${c.b},0.55)`);
+      drawRing(cx, headY, (noteSize / 2) + 3, "rgba(255,255,255,0.45)", 3);
     }
 
     // сустейны (тела)
@@ -1079,34 +1183,97 @@
     else addHold(lane, t0, t1);
   }, true);
 
-  // мышь: клик по ноте (примерно) = удалить
-  canvas.addEventListener("mousedown", (e) => {
+  // отключаем контекстное меню на канвасе (чтобы ПКМ был "удалить")
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // мышь: ЛКМ ставит (hold = сустейн), ПКМ удаляет
+  canvas.addEventListener("pointerdown", (e) => {
     if (!audioBuffer) return;
+    if (!editorActive) return;
 
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
-    const w = rect.width;
-    const h = rect.height;
+    const pick = pickLaneAndTime(mx, my);
+    if (!pick) return;
 
-    const fieldX = PAD;
-    const fieldY = PAD;
-    const fieldW = w - PAD * 2;
-    const fieldH = h - PAD * 2;
+    // ПКМ = удалить
+    if (e.button === 2){
+      const tGuess = pick.time;
+      if (deleteNearestNoteAt(pick.lane, tGuess, DELETE_RADIUS_SEC)) sortNotes();
+      return;
+    }
 
-    const laneW = fieldW / LANES;
-    const hitY = fieldY + fieldH * HITLINE_Y_FRAC;
+    // ЛКМ = начать постановку
+    if (e.button === 0){
+      mousePlace.active = true;
+      mousePlace.lane = pick.lane;
+      mousePlace.t0 = pick.time;
+      mousePlace.t1 = pick.time;
 
-    const lane = Math.floor((mx - fieldX) / laneW);
-    if (lane < 0 || lane >= LANES) return;
+      // чтобы pointerup точно прилетел даже если уедем за канвас
+      try { canvas.setPointerCapture(e.pointerId); } catch {}
+    }
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!mousePlace.active) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const pick = pickLaneAndTime(mx, my);
+    if (!pick) return;
+
+    // если случайно уехали в другой лейн, держим исходный
+    mousePlace.t1 = pick.time;
+  });
+
+  canvas.addEventListener("pointerup", (e) => {
+    if (!mousePlace.active) return;
+    if (e.button !== 0) return;
+
+    const lane = mousePlace.lane;
+    const t0 = mousePlace.t0;
+    const t1 = mousePlace.t1;
+
+    mousePlace.active = false;
+    mousePlace.lane = -1;
+
+    const dur = Math.abs(t1 - t0);
+    if (dur < HOLD_TAP_THRESHOLD) addTap(lane, t0);
+    else addHold(lane, t0, t1);
+  });
+
+  canvas.addEventListener("pointercancel", () => {
+    mousePlace.active = false;
+    mousePlace.lane = -1;
+  });
+
+  // колесо: скроллим по времени
+  canvas.addEventListener("wheel", (e) => {
+    if (!audioBuffer) return;
+    if (!editorActive) return;
+
+    e.preventDefault();
 
     const t = getTrackTime();
-    const speed = SCROLL_SPEED_PX_PER_SEC;
-    const timeGuess = t + (hitY - my) / speed;
 
-    if (deleteNearestNoteAt(lane, timeGuess, DELETE_RADIUS_SEC)) sortNotes();
-  });
+    // wheel в пикселях -> секунды (привязка к скорости визуального скролла)
+    const sens = 1.15;
+    const dt = (e.deltaY / SCROLL_SPEED_PX_PER_SEC) * sens;
+
+    let next = t + dt;
+
+    // если snap включен, то фиксируем на сетку (приятнее для ровных чартиков)
+    if (getSnapStep() > 0){
+      next = snapTime(next);
+    }
+
+    setTrackTime(next);
+  }, { passive:false });
 
   audioFile.addEventListener("change", async () => {
     const file = audioFile.files && audioFile.files[0];
