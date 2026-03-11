@@ -65,6 +65,7 @@
       flex-direction:column;
       gap:2px;
       min-width: 180px;
+      cursor: pointer; /* это чтобы показать что кликабельно */
     }
     .brand h1{
       margin:0;
@@ -209,38 +210,38 @@
       margin:8px 0;
     }
 
-    /* верх канваса: скраб + инфа */
+    /* верх канваса: скраб + инфа + аудио статус */
     .toolbar{
       display:flex;
       gap:10px;
       flex-wrap:wrap;
       align-items:center;
       justify-content:space-between;
+      margin-bottom:8px;
     }
 
-    .toolbar .left,
-    .toolbar .right{
+    .toolbar .left{
       display:flex;
       gap:10px;
       align-items:center;
       flex-wrap:wrap;
+      flex:1;
     }
 
-    .toolbar input[type="range"]{ width:260px; }
+    .toolbar input[type="range"]{ 
+      width: min(260px, 100%);
+      min-width: 160px;
+    }
 
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.10);
-      background:rgba(0,0,0,.18);
+    .audio-status{
+      font-size:11px;
       color:var(--muted);
-      font-size:12px;
       white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:200px;
     }
-    .pill strong{ color:var(--text); font-weight:650; }
+    .audio-status strong{ color:var(--text); font-weight:650; }
 
     /* рамка под канвас */
     .stageShell{
@@ -271,16 +272,6 @@
       outline-offset:-2px;
     }
 
-    .status{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      font-size:12px;
-      color:var(--muted);
-      flex-wrap:wrap;
-    }
-    .status strong{ color:var(--text); font-weight:650; }
-
     /* низ */
     footer{
       width:100%;
@@ -305,6 +296,92 @@
     }
     footer a:hover{ text-decoration:underline; }
 
+    /* статистика с проблемами */
+    .stats-row{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* модалка */
+    .modal-overlay{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.75);
+      backdrop-filter:blur(8px);
+      z-index:1000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      opacity:0;
+      visibility:hidden;
+      transition:opacity .2s, visibility .2s;
+    }
+
+    .modal-overlay.active{
+      opacity:1;
+      visibility:visible;
+    }
+
+    .modal{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:0 20px 60px var(--shadow);
+      width:90%;
+      max-width:500px;
+      max-height:80vh;
+      overflow-y:auto;
+      padding:24px;
+      position:relative;
+    }
+
+    .modal h2{
+      margin:0 0 16px 0;
+      font-size:16px;
+      color:var(--text);
+      text-transform:none;
+      letter-spacing:normal;
+    }
+
+    .modal-close{
+      position:absolute;
+      top:16px;
+      right:16px;
+      background:none;
+      border:none;
+      color:var(--muted);
+      font-size:20px;
+      cursor:pointer;
+      padding:4px 8px;
+    }
+    .modal-close:hover{ color:var(--text); }
+
+    .modal-section{
+      margin-bottom:20px;
+      padding-bottom:16px;
+      border-bottom:1px solid var(--line);
+    }
+    .modal-section:last-child{
+      border-bottom:none;
+      margin-bottom:0;
+      padding-bottom:0;
+    }
+
+    .modal .btn{
+      width:100%;
+      margin-top:8px;
+    }
+
+    /* сетка для хоткеев в модалке */
+    .keybind-grid{
+      display:grid;
+      grid-template-columns:80px 1fr 1fr 1fr 1fr;
+      gap:6px;
+      align-items:center;
+      margin:12px 0;
+    }
+
     /* мобилка */
     @media (max-width: 900px){
       .head{ padding:14px 16px; }
@@ -313,7 +390,8 @@
         padding:16px;
       }
       .footerRow{ padding:14px 16px; }
-      .toolbar input[type="range"]{ width:220px; }
+      .toolbar input[type="range"]{ width:180px; }
+      .audio-status{ max-width:120px; }
     }
   </style>
 </head>
@@ -321,26 +399,96 @@
 <body>
 <header>
   <div class="head">
-    <div class="brand">
+    <div class="brand" id="homeButton">
       <h1>TerraRiff</h1>
       <small>Chart Editor</small>
     </div>
 
     <div class="headerActions">
-      <a class="btn" href="./index.html" title="Back to title page">Home</a>
-      <button id="exportBtn" class="btn primary" disabled>Export SONG.json</button>
+      <button id="settingsBtn" class="btn">⚙️ Settings</button>
       <button id="importBtn" class="btn">Import SONG.json</button>
+      <button id="exportBtn" class="btn primary" disabled>Export SONG.json</button>
       <input id="importFile" type="file" accept=".json,application/json" style="display:none;">
     </div>
   </div>
 </header>
 
+<!-- модалка настроек -->
+<div id="settingsModal" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" id="closeSettingsBtn">✕</button>
+    
+    <h2>Editor Settings</h2>
+
+    <!-- формат экспорта -->
+    <div class="modal-section">
+      <label>Export Format</label>
+      <select id="exportFormat">
+        <option value="json">JSON file (song.json)</option>
+        <option value="folder">Copy to TerraRiff/Songs/ folder</option>
+      </select>
+    </div>
+
+    <!-- настройки клавиш -->
+    <div class="modal-section">
+      <label>Keybinds</label>
+      <div class="keybind-grid">
+        <span class="muted">Keys:</span>
+        <button class="keybind-btn btn" data-lane="0" style="padding:8px;">Lane 1 (S)</button>
+        <button class="keybind-btn btn" data-lane="1" style="padding:8px;">Lane 2 (D)</button>
+        <button class="keybind-btn btn" data-lane="2" style="padding:8px;">Lane 3 (J)</button>
+        <button class="keybind-btn btn" data-lane="3" style="padding:8px;">Lane 4 (K)</button>
+      </div>
+    </div>
+
+    <!-- визуальные настройки -->
+    <div class="modal-section">
+      <label>Note Speed</label>
+      <div style="display:grid; grid-template-columns:1fr 60px; gap:10px; align-items:center;">
+        <input type="range" id="noteSpeed" min="300" max="800" value="520" step="10">
+        <span id="speedValue" class="muted">520px/s</span>
+      </div>
+
+      <label style="margin-top:12px;">Scroll Direction</label>
+      <select id="scrollDir">
+        <option value="down">Downscroll (notes fall down)</option>
+        <option value="up">Upscroll (notes rise up)</option>
+      </select>
+
+      <label style="margin-top:12px;">Mouse Wheel</label>
+      <select id="wheelDir">
+        <option value="normal" selected>Normal (scroll forward = time forward)</option>
+        <option value="inverted">Inverted (like DAW)</option>
+      </select>
+
+      <label style="margin-top:12px;">Hitline Position</label>
+      <input type="range" id="hitlinePos" min="0.2" max="0.9" value="0.78" step="0.01">
+    </div>
+
+    <!-- оффсет аудио -->
+    <div class="modal-section">
+      <label>Audio Offset (ms)</label>
+      <div style="display:grid; grid-template-columns:1fr 60px; gap:10px; align-items:center;">
+        <input type="range" id="audioOffset" min="-200" max="200" value="0" step="5">
+        <span id="offsetValue" class="muted">0ms</span>
+      </div>
+    </div>
+
+    <!-- экшон настроек -->
+    <div class="modal-section" style="display:flex; gap:8px;">
+      <button id="resetSettingsBtn" class="btn" style="flex:1;">Reset to Defaults</button>
+      <button id="exportSettingsBtn" class="btn" style="flex:1;">Export</button>
+      <button id="importSettingsBtn" class="btn" style="flex:1;">Import</button>
+    </div>
+  </div>
+</div>
+
 <main>
   <section class="card">
-    <h2>Song</h2>
+    <h2>Song Settings</h2>
 
-    <label>Track (.ogg or .wav)</label>
-    <input id="audioFile" type="file" accept=".ogg,audio/ogg,.wav,audio/wav">
+    <label>Track (MP3, OGG, FLAC, WAV, M4A, AAC, WMA)</label>
+    <input id="audioFile" type="file" accept=".mp3,.ogg,.flac,.wav,.m4a,.aac,.wma,audio/*">
 
     <div class="row">
       <div>
@@ -348,7 +496,7 @@
         <input id="title" type="text" placeholder="Song title...">
       </div>
       <div>
-        <label>Artist</label>
+        <label>Artist (song author)</label>
         <input id="artist" type="text" placeholder="Artist...">
       </div>
     </div>
@@ -366,7 +514,7 @@
 
     <div class="row">
       <div>
-        <label>BPM (optional, for snap)</label>
+        <label>BPM (for snap)</label>
         <input id="bpm" type="number" step="0.01" min="1" placeholder="e.g. 120">
       </div>
       <div>
@@ -380,12 +528,15 @@
       </div>
     </div>
 
-    <label>Play rate</label>
-    <select id="rate">
+    <!-- скорость аудио -->
+    <label>Play Speed</label>
+    <select id="playSpeed">
       <option value="0.5">0.5x</option>
       <option value="0.75">0.75x</option>
       <option value="1" selected>1.0x</option>
       <option value="1.25">1.25x</option>
+      <option value="1.5">1.5x</option>
+      <option value="2">2.0x</option>
     </select>
 
     <div class="row" style="margin-top:10px;">
@@ -393,22 +544,30 @@
       <button id="stopBtn" class="btn" disabled>Stop</button>
     </div>
 
-    <div class="muted">
-      <div>Click the editor (canvas) to enable hotkeys.</div>
-      <div><span class="kbd">S</span><span class="kbd">D</span><span class="kbd">J</span><span class="kbd">K</span> place notes (layout-independent).</div>
-      <div>Hold a key to create a sustain (duration).</div>
-      <div><span class="kbd">LMB</span> place (hold = sustain), <span class="kbd">RMB</span> delete. Wheel = scroll time.</div>
-      <div><span class="kbd">Space</span> play/pause. <span class="kbd">Backspace</span> undo. <span class="kbd">Shift</span>+<span class="kbd">Backspace</span> redo.</div>
-    </div>
-
     <hr>
 
     <h2>Chart</h2>
-    <div class="row">
-      <button id="clearBtn" class="btn" disabled>Clear notes</button>
+    <div class="stats-row">
+      <span class="muted" id="chartStats">Notes: 0 • Sustains: 0</span>
+      <span class="muted" id="problemCount" style="color: #ff6a6a;">⚠ 0 issues</span>
     </div>
 
-    <div class="muted" id="chartStats">Notes: 0 • Sustains: 0</div>
+    <div class="row">
+      <button id="clearBtn" class="btn" disabled>Clear notes</button>
+      <button id="quantizeBtn" class="btn" disabled>Quantize</button>
+    </div>
+
+    <!-- клавиши управления -->
+    <hr>
+    <h2>Hotkeys</h2>
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:12px;">
+      <div><span class="kbd" id="hotkeyLane0">S</span><span class="kbd" id="hotkeyLane1">D</span><span class="kbd" id="hotkeyLane2">J</span><span class="kbd" id="hotkeyLane3">K</span> + <span class="kbd">LMB</span> place notes</div>
+      <div><span class="kbd">RMB</span> delete note</div>
+      <div><span class="kbd">Space</span> play/pause</div>
+      <div><span class="kbd">Ctrl+Z</span> undo</div>
+      <div><span class="kbd">Ctrl+Y</span> redo</div>
+      <div><span class="kbd">← →</span> / <span class="kbd">Wheel</span> scrub</div>
+    </div>
   </section>
 
   <section class="card">
@@ -417,7 +576,7 @@
         <span class="muted">Scrub</span>
         <input id="scrub" type="range" min="0" max="1" step="0.001" value="0" disabled>
         <span id="timeLabel" class="muted">0.000s</span>
-        <span class="pill">Export format: <strong>meta + chart</strong></span>
+        <span class="audio-status" id="audioStatus">not loaded</span>
       </div>
       <div class="right"></div>
     </div>
@@ -425,34 +584,32 @@
     <div class="stageShell">
       <canvas id="stage"></canvas>
     </div>
-
-    <div class="status">
-      <div>Audio: <strong id="audioStatus">not loaded</strong></div>
-      <div>Mode: <strong id="modeStatus">idle</strong></div>
-    </div>
   </section>
 </main>
 
 <footer>
   <div class="footerRow">
     <div>Made by Wurper</div>
-    <div>TerraRiff • Editor • v0.5</div>
+    <div>TerraRiff • Editor • v0.6</div>
   </div>
 </footer>
 
 <script>
 (() => {
   const LANES = 4;
-  const LANE_CODES = ["KeyS", "KeyD", "KeyJ", "KeyK"]; // e.code не зависит от раскладки
+  // это будет меняться через настройки
+  let LANE_CODES = ["KeyS", "KeyD", "KeyJ", "KeyK"];
 
-  const HITLINE_Y_FRAC = 0.78;
+  let HITLINE_Y_FRAC = 0.78;
+  let SCROLL_SPEED_PX_PER_SEC = 520;
+  let SCROLL_DIRECTION = 1; // 1 = вниз, -1 = вверх
+  
   const PAD = 18;
 
   const HOLD_TAP_THRESHOLD = 0.180;   // короче = тап, дольше = сустейн
   const DELETE_RADIUS_SEC = 0.09;     // окно по времени при клике для удаления
 
   // чисто визуальные константы предпросмотра
-  const SCROLL_SPEED_PX_PER_SEC = 520;
   const NOTE_SIZE_PX = 40;
 
   const LANE_COLORS = [
@@ -470,14 +627,15 @@
   const stopBtn = document.getElementById("stopBtn");
   const exportBtn = document.getElementById("exportBtn");
   const clearBtn = document.getElementById("clearBtn");
+  const quantizeBtn = document.getElementById("quantizeBtn");
   const scrub = document.getElementById("scrub");
   const timeLabel = document.getElementById("timeLabel");
   const bpmInput = document.getElementById("bpm");
   const snapSel = document.getElementById("snap");
-  const rateSel = document.getElementById("rate");
   const audioStatus = document.getElementById("audioStatus");
-  const modeStatus = document.getElementById("modeStatus");
   const chartStats = document.getElementById("chartStats");
+  const problemCount = document.getElementById("problemCount");
+  const playSpeed = document.getElementById("playSpeed");
 
   const titleInput = document.getElementById("title");
   const artistInput = document.getElementById("artist");
@@ -486,6 +644,11 @@
 
   const importBtn = document.getElementById("importBtn");
   const importFile = document.getElementById("importFile");
+  const homeButton = document.getElementById("homeButton");
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsModal = document.getElementById("settingsModal");
+  const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  const exportFormat = document.getElementById("exportFormat");
 
   let audioCtx = null;
   let audioBuffer = null;
@@ -495,7 +658,6 @@
   let startedAt = 0;     // audioCtx.currentTime в момент старта
   let pausedAt = 0;      // позиция трека (сек), когда стоим/пауза
   let isPlaying = false;
-  let playRate = 1.0;
 
   // ноты: { time, lane, duration }
   let notes = [];
@@ -518,6 +680,20 @@
   let editorActive = false;
   canvas.tabIndex = 0;
 
+  // настройки редактора
+  let editorSettings = {
+    keybinds: ['KeyS', 'KeyD', 'KeyJ', 'KeyK'],
+    noteSpeed: 520,
+    scrollDirection: 'down',
+    wheelDirection: 'normal', // normal по умолчанию
+    hitlinePos: 0.78,
+    audioOffset: 0
+  };
+
+  let listeningForLane = -1;
+  let hasChanges = false;
+  let autoSaveTimer;
+
   function isTypingNow(){
     const el = document.activeElement;
     if (!el) return false;
@@ -526,31 +702,18 @@
     return tag === "input" || tag === "textarea" || tag === "select" || el.isContentEditable;
   }
 
-  function updateModeLabel(){
-    if (!audioBuffer){
-      modeStatus.textContent = "idle";
-      return;
-    }
-
-    const base = isPlaying ? "playing" : "ready";
-    modeStatus.textContent = editorActive ? `${base} (editor)` : base;
-  }
-
   canvas.addEventListener("focus", () => {
     editorActive = true;
-    updateModeLabel();
   });
 
   canvas.addEventListener("blur", () => {
     editorActive = false;
-    updateModeLabel();
 
     // на выходе из фокуса сбрасываем "залипшие" состояния
     for (let i = 0; i < LANES; i++){
       keyDown[i] = false;
       holdStart[i] = null;
     }
-
     mousePlace.active = false;
   });
 
@@ -591,7 +754,11 @@
   function getTrackTime(){
     if (!audioCtx) return 0;
     if (!isPlaying) return pausedAt;
-    return (audioCtx.currentTime - startedAt) * playRate + pausedAt;
+    return (audioCtx.currentTime - startedAt) * getPlaySpeed() + pausedAt;
+  }
+
+  function getPlaySpeed(){
+    return parseFloat(playSpeed.value) || 1;
   }
 
   function setTrackTime(t){
@@ -599,7 +766,6 @@
     const clamped = Math.max(0, Math.min(t, dur));
     pausedAt = clamped;
 
-    // если играем, то перезапускаем с новой позиции
     if (isPlaying){
       stopPlayback(true);
       startPlayback();
@@ -651,16 +817,18 @@
 
     const t = getTrackTime();
     const speed = SCROLL_SPEED_PX_PER_SEC;
-    const timeGuess = t + (hitY - my) / speed;
+    // учитываем направление скролла при расчете времени
+    const timeGuess = t + (hitY - my) / speed * SCROLL_DIRECTION;
 
     return { lane, time: timeGuess, fieldX, fieldY, fieldW, fieldH, laneW, hitY };
   }
 
-  // undo/redo: храним снепшоты notes (не самый красивый способ, но стабильный)
+  // undo/redo: храним снепшоты notes
   function pushUndo(){
     undoStack.push(JSON.stringify(notes));
     if (undoStack.length > 200) undoStack.shift();
     redoStack.length = 0;
+    markChanges();
   }
 
   function undo(){
@@ -668,6 +836,7 @@
     redoStack.push(JSON.stringify(notes));
     notes = JSON.parse(undoStack.pop());
     updateStatsUI();
+    markChanges();
   }
 
   function redo(){
@@ -675,6 +844,7 @@
     undoStack.push(JSON.stringify(notes));
     notes = JSON.parse(redoStack.pop());
     updateStatsUI();
+    markChanges();
   }
 
   function enableControls(ready){
@@ -682,6 +852,7 @@
     stopBtn.disabled = !ready;
     exportBtn.disabled = !ready;
     clearBtn.disabled = !ready;
+    quantizeBtn.disabled = !ready;
     scrub.disabled = !ready;
   }
 
@@ -689,14 +860,21 @@
     ensureAudioCtx();
 
     const arr = await file.arrayBuffer();
-    audioBuffer = await audioCtx.decodeAudioData(arr);
+    
+    // пробуем декодировать как есть
+    try {
+      audioBuffer = await audioCtx.decodeAudioData(arr);
+    } catch (e) {
+      alert("Couldn't decode audio. Try another file format.");
+      return;
+    }
 
     pausedAt = 0;
     isPlaying = false;
     sourceNode = null;
     startedAt = 0;
 
-    audioStatus.textContent = `${file.name} (${audioBuffer.duration.toFixed(2)}s)`;
+    audioStatus.innerHTML = `<strong>${file.name}</strong> (${audioBuffer.duration.toFixed(2)}s)`;
 
     enableControls(true);
 
@@ -704,12 +882,10 @@
     scrub.value = "0";
     timeLabel.textContent = "0.000s";
 
-    // автозаполнение названия, если пусто
     if (!titleInput.value.trim()){
       titleInput.value = file.name.replace(/\.[^.]+$/, "");
     }
 
-    updateModeLabel();
     updateStatsUI();
   }
 
@@ -717,24 +893,20 @@
     if (!audioCtx || !audioBuffer) return;
     if (isPlaying) return;
 
-    playRate = parseFloat(rateSel.value) || 1;
-
     sourceNode = audioCtx.createBufferSource();
     sourceNode.buffer = audioBuffer;
-    sourceNode.playbackRate.value = playRate;
+    sourceNode.playbackRate.value = getPlaySpeed();
     sourceNode.connect(audioCtx.destination);
 
     startedAt = audioCtx.currentTime;
     sourceNode.start(0, pausedAt);
 
     isPlaying = true;
-    updateModeLabel();
 
     sourceNode.onended = () => {
       if (!isPlaying) return;
       stopPlayback(false);
       setTrackTime(getDuration());
-      modeStatus.textContent = "ended";
     };
   }
 
@@ -752,8 +924,6 @@
       isPlaying = false;
       if (!keepTime) pausedAt = t;
     }
-
-    updateModeLabel();
   }
 
   function togglePlay(){
@@ -824,7 +994,122 @@
     return f ? f.name : "";
   }
 
-  function exportSongJson(){
+  // поиск проблемных нот (пересечения и дубликаты)
+  function findProblemNotes(){
+    const problems = [];
+    const TOLERANCE = 0.010; // 10ms допуск для определения "одинакового времени"
+    
+    // группируем по лейнам
+    const byLane = [[], [], [], []];
+    
+    notes.forEach((n, idx) => {
+      if (n.lane >= 0 && n.lane < 4) byLane[n.lane].push({ ...n, originalIndex: idx });
+    });
+    
+    // проверяем каждый лейн
+    byLane.forEach((laneNotes, lane) => {
+      // сортируем по времени
+      laneNotes.sort((a, b) => a.time - b.time);
+      
+      for (let i = 0; i < laneNotes.length; i++) {
+        const current = laneNotes[i];
+        
+        // проверяем пересечения с следующей нотой
+        if (i < laneNotes.length - 1) {
+          const next = laneNotes[i + 1];
+          const currentEnd = current.time + (current.duration || 0);
+          
+          // если конец текущей ноты позже начала следующей (с учетом допуска)
+          if (currentEnd > next.time + TOLERANCE) {
+            problems.push({
+              note1: current,
+              note2: next,
+              lane,
+              type: 'overlap',
+              message: 'Overlapping notes'
+            });
+          }
+        }
+        
+        // проверяем дубликаты (ноты с очень близким временем)
+        for (let j = i + 1; j < laneNotes.length; j++) {
+          const other = laneNotes[j];
+          const timeDiff = Math.abs(other.time - current.time);
+          
+          // если разница во времени меньше допуска - это дубликат
+          if (timeDiff < TOLERANCE) {
+            problems.push({
+              note1: current,
+              note2: other,
+              lane,
+              type: 'duplicate',
+              message: 'Duplicate notes'
+            });
+          } else {
+            // так как массив отсортирован, дальше можно не проверять
+            break;
+          }
+        }
+      }
+    });
+    
+    // убираем дубликаты проблем (чтобы дважды не показывать одну и ту же пару)
+    const uniqueProblems = [];
+    const seen = new Set();
+    
+    problems.forEach(p => {
+      const id1 = `${p.note1.originalIndex}-${p.note2.originalIndex}`;
+      const id2 = `${p.note2.originalIndex}-${p.note1.originalIndex}`;
+      
+      if (!seen.has(id1) && !seen.has(id2)) {
+        seen.add(id1);
+        uniqueProblems.push(p);
+      }
+    });
+    
+    problemCount.textContent = `⚠ ${uniqueProblems.length} issues`;
+    return uniqueProblems;
+  }
+
+  // экспорт в папку игры
+  async function copyToGameFolder(){
+    const payload = generateSongJson();
+    const songId = payload.meta.id;
+    
+    // пытаемся найти папку Terraria
+    const terrariaPath = await findTerrariaPath();
+    
+    if (terrariaPath) {
+      const songsFolder = `${terrariaPath}/TerraRiff/Songs/${songId}`;
+      alert(`Create folder:\n${songsFolder}\n\nAnd place these files there:\n- song.json\n- ${getAudioFileName()}`);
+    }
+    
+    // все равно скачиваем json
+    const songJson = JSON.stringify(payload, null, 2);
+    const blob = new Blob([songJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'song.json';
+    a.click();
+    
+    URL.revokeObjectURL(url);
+  }
+
+  async function findTerrariaPath(){
+    // это примерные пути, в реальности можно дать пользователю выбрать
+    const paths = [
+      `${process.env.USERPROFILE}/Documents/My Games/Terraria/tModLoader`,
+      `${process.env.HOME}/.local/share/Terraria/tModLoader`,
+      `${process.env.HOME}/Library/Application Support/Terraria/tModLoader`
+    ];
+    
+    // пока просто возвращаем первый вариант
+    return paths[0];
+  }
+
+  function generateSongJson(){
     sortNotes();
 
     const titleVal = titleInput.value.trim();
@@ -842,8 +1127,7 @@
     const baseName = audioName ? audioName.replace(/\.[^.]+$/, "") : "";
     const id = slugify(titleVal || baseName || "song");
 
-    // формат: meta + chart
-    const payload = {
+    return {
       meta: {
         id,
         title: titleVal || id,
@@ -862,13 +1146,22 @@
         })
       }
     };
+  }
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `song.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  function exportSongJson(){
+    const format = exportFormat.value;
+    
+    if (format === 'folder') {
+      copyToGameFolder();
+    } else {
+      const payload = generateSongJson();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `song.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
   }
 
   function importSongJsonText(text){
@@ -878,7 +1171,6 @@
 
     if (!data) return alert("Bad JSON");
 
-    // поддерживаем 2 формата: { meta, chart:{notes} } или { notes }
     let meta = null;
     let noteArr = null;
 
@@ -937,13 +1229,14 @@
   function updateStatsUI(){
     const sustains = notes.filter(n => n.duration > 0).length;
     chartStats.textContent = `Notes: ${notes.length} • Sustains: ${sustains}`;
+    findProblemNotes();
   }
 
   function drawSnapGrid(fieldX, fieldY, fieldW, fieldH, hitY, t){
     const step = getSnapStep();
     if (step <= 0) return;
 
-    const speed = SCROLL_SPEED_PX_PER_SEC;
+    const speed = SCROLL_SPEED_PX_PER_SEC * SCROLL_DIRECTION;
 
     // видимый диапазон времени (примерно)
     const tTop = t + (hitY - fieldY) / speed;
@@ -963,7 +1256,6 @@
       const tt = k * step;
       const y = hitY - (tt - t) * speed;
 
-      // чуть ярче на "четвертях" если snap мельче
       const beat = 60 / (parseFloat(bpmInput.value) || 120);
       const isBeat = beat > 0 ? (Math.abs((tt / beat) - Math.round(tt / beat)) < 1e-6) : false;
 
@@ -1012,7 +1304,7 @@
     }
 
     const t = getTrackTime();
-    const speed = SCROLL_SPEED_PX_PER_SEC;
+    const speed = SCROLL_SPEED_PX_PER_SEC * SCROLL_DIRECTION;
     const noteSize = NOTE_SIZE_PX;
 
     // сетка по snap
@@ -1085,13 +1377,37 @@
       drawRing(cx, y, (noteSize / 2) + 3, "rgba(255,255,255,0.92)", 3);
     }
 
-    // подсказка букв у хитлайна
+    // подсветка проблемных нот (только красные)
+    if (editorActive && notes.length > 0) {
+      const problems = findProblemNotes();
+      
+      problems.forEach(p => {
+        const lane = p.note1.lane;
+        const cx = fieldX + lane * laneW + laneW / 2;
+        const y1 = hitY - (p.note1.time - t) * speed;
+        const y2 = hitY - (p.note2.time - t) * speed;
+        
+        ctx.fillStyle = "rgba(255, 60, 60, 0.9)";
+        ctx.font = "bold 20px system-ui";
+        ctx.fillText("⚠", cx - 10, (y1 + y2) / 2 - 10);
+      });
+    }
+
+    // подсказка букв у хитлайна (кастомные из настроек)
     ctx.fillStyle = "rgba(220,220,235,0.75)";
     ctx.font = "12px system-ui, Segoe UI, Roboto, Arial";
-    ctx.fillText("S", fieldX + laneW * 0 + 12, hitY + 24);
-    ctx.fillText("D", fieldX + laneW * 1 + 12, hitY + 24);
-    ctx.fillText("J", fieldX + laneW * 2 + 12, hitY + 24);
-    ctx.fillText("K", fieldX + laneW * 3 + 12, hitY + 24);
+    
+    const keyNames = editorSettings.keybinds.map(code => {
+      if (code === 'KeyS') return 'S';
+      if (code === 'KeyD') return 'D';
+      if (code === 'KeyJ') return 'J';
+      if (code === 'KeyK') return 'K';
+      return code.replace('Key', '').replace('Digit', '');
+    });
+
+    for (let i = 0; i < LANES; i++) {
+      ctx.fillText(keyNames[i], fieldX + laneW * i + 12, hitY + 24);
+    }
 
     // хитлайн
     ctx.strokeStyle = "rgba(240,240,255,0.25)";
@@ -1130,13 +1446,176 @@
     ctx2.closePath();
   }
 
-  // хоткеи: только когда канвас активен и мы не печатаем в инпутах
+  // настройки настроечкииии
+
+  function loadSettings(){
+    try {
+      const saved = localStorage.getItem('terrariff_editor_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        editorSettings = { ...editorSettings, ...parsed };
+        updateSettingsUI();
+      }
+    } catch (e) {
+      console.warn('Failed to load settings:', e);
+    }
+  }
+
+  function saveSettings(){
+    try {
+      localStorage.setItem('terrariff_editor_settings', JSON.stringify(editorSettings));
+      applySettings();
+    } catch (e) {
+      console.warn('Failed to save settings:', e);
+    }
+  }
+
+  function updateSettingsUI(){
+    // кнопки
+    document.querySelectorAll('.keybind-btn').forEach(btn => {
+      const lane = parseInt(btn.dataset.lane);
+      const key = editorSettings.keybinds[lane];
+      
+      let keyName = key.replace('Key', '');
+      if (key === 'KeyS') keyName = 'S';
+      if (key === 'KeyD') keyName = 'D';
+      if (key === 'KeyJ') keyName = 'J';
+      if (key === 'KeyK') keyName = 'K';
+      
+      btn.textContent = `Lane ${lane + 1} (${keyName})`;
+    });
+
+    // обновляем хоткеи в подсказке
+    for (let i = 0; i < 4; i++) {
+      const el = document.getElementById(`hotkeyLane${i}`);
+      if (el) {
+        const key = editorSettings.keybinds[i];
+        let keyName = key.replace('Key', '');
+        if (key === 'KeyS') keyName = 'S';
+        if (key === 'KeyD') keyName = 'D';
+        if (key === 'KeyJ') keyName = 'J';
+        if (key === 'KeyK') keyName = 'K';
+        el.textContent = keyName;
+      }
+    }
+    
+    // скорость нот
+    const speedSlider = document.getElementById('noteSpeed');
+    if (speedSlider) {
+      speedSlider.value = editorSettings.noteSpeed;
+      document.getElementById('speedValue').textContent = `${editorSettings.noteSpeed}px/s`;
+    }
+    
+    // направление нот
+    const scrollSelect = document.getElementById('scrollDir');
+    if (scrollSelect) {
+      scrollSelect.value = editorSettings.scrollDirection;
+    }
+    
+    // направление колеса мыши
+    const wheelSelect = document.getElementById('wheelDir');
+    if (wheelSelect) {
+      wheelSelect.value = editorSettings.wheelDirection;
+    }
+    
+    // оффсет аудио
+    const offsetSlider = document.getElementById('audioOffset');
+    if (offsetSlider) {
+      offsetSlider.value = editorSettings.audioOffset;
+      document.getElementById('offsetValue').textContent = `${editorSettings.audioOffset}ms`;
+    }
+    
+    // позиция хитлайна
+    const hitlineSlider = document.getElementById('hitlinePos');
+    if (hitlineSlider) {
+      hitlineSlider.value = editorSettings.hitlinePos;
+    }
+    
+    applySettings();
+  }
+
+  function applySettings(){
+    LANE_CODES = editorSettings.keybinds;
+    SCROLL_SPEED_PX_PER_SEC = editorSettings.noteSpeed;
+    
+    // устанавливаем направление скролла
+    SCROLL_DIRECTION = editorSettings.scrollDirection === 'up' ? -1 : 1;
+    
+    HITLINE_Y_FRAC = editorSettings.scrollDirection === 'up' 
+      ? 1 - editorSettings.hitlinePos 
+      : editorSettings.hitlinePos;
+    
+    canvas.focus();
+  }
+
+  function markChanges(){
+    hasChanges = true;
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(autoSaveProject, 2000);
+  }
+
+  function autoSaveProject(){
+    if (!hasChanges) return;
+    
+    const project = {
+      notes,
+      meta: {
+        title: titleInput.value,
+        artist: artistInput.value,
+        difficulty: difficultyInput.value,
+        bpm: bpmInput.value,
+        leadIn: leadInInput.value
+      },
+      settings: editorSettings,
+      audioFile: audioFile.files?.[0]?.name
+    };
+    
+    localStorage.setItem('terrariff_autosave', JSON.stringify(project));
+    hasChanges = false;
+    
+    // показываем индикатор сохранения в аудио статусе
+    const originalText = audioStatus.innerHTML;
+    audioStatus.innerHTML = '💾 Saved';
+    setTimeout(() => {
+      audioStatus.innerHTML = originalText;
+    }, 1000);
+  }
+
+  function loadAutoSave(){
+    try {
+      const saved = localStorage.getItem('terrariff_autosave');
+      if (saved) {
+        const project = JSON.parse(saved);
+        if (confirm('Auto-saved project found. Load it?')) {
+          notes = project.notes || [];
+          if (project.meta) {
+            titleInput.value = project.meta.title || '';
+            artistInput.value = project.meta.artist || '';
+            difficultyInput.value = project.meta.difficulty || '3';
+            bpmInput.value = project.meta.bpm || '';
+            leadInInput.value = project.meta.leadIn || '1.00';
+          }
+          if (project.settings) {
+            editorSettings = { ...editorSettings, ...project.settings };
+            updateSettingsUI();
+          }
+          sortNotes();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load autosave:', e);
+    }
+  }
+
+  // обработчики событий
+
   document.addEventListener("keydown", (e) => {
     if (e.repeat) return;
     if (isTypingNow()) return;
     if (!editorActive) return;
 
     const code = e.code;
+    const ctrl = e.ctrlKey || e.metaKey;
 
     if (code === "Space"){
       e.preventDefault();
@@ -1144,10 +1623,30 @@
       return;
     }
 
-    if (code === "Backspace"){
+    if (ctrl && code === "KeyZ"){
       e.preventDefault();
-      if (e.shiftKey) redo();
-      else undo();
+      undo();
+      return;
+    }
+
+    if (ctrl && code === "KeyY"){
+      e.preventDefault();
+      redo();
+      return;
+    }
+
+    // стрелки влево-вправо на 5 секунд
+    if (code === "ArrowLeft") {
+      e.preventDefault();
+      const t = getTrackTime();
+      setTrackTime(t - 5);
+      return;
+    }
+
+    if (code === "ArrowRight") {
+      e.preventDefault();
+      const t = getTrackTime();
+      setTrackTime(t + 5);
       return;
     }
 
@@ -1183,10 +1682,8 @@
     else addHold(lane, t0, t1);
   }, true);
 
-  // отключаем контекстное меню на канвасе (чтобы ПКМ был "удалить")
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // мышь: ЛКМ ставит (hold = сустейн), ПКМ удаляет
   canvas.addEventListener("pointerdown", (e) => {
     if (!audioBuffer) return;
     if (!editorActive) return;
@@ -1198,21 +1695,18 @@
     const pick = pickLaneAndTime(mx, my);
     if (!pick) return;
 
-    // ПКМ = удалить
     if (e.button === 2){
       const tGuess = pick.time;
       if (deleteNearestNoteAt(pick.lane, tGuess, DELETE_RADIUS_SEC)) sortNotes();
       return;
     }
 
-    // ЛКМ = начать постановку
     if (e.button === 0){
       mousePlace.active = true;
       mousePlace.lane = pick.lane;
       mousePlace.t0 = pick.time;
       mousePlace.t1 = pick.time;
 
-      // чтобы pointerup точно прилетел даже если уедем за канвас
       try { canvas.setPointerCapture(e.pointerId); } catch {}
     }
   });
@@ -1227,7 +1721,6 @@
     const pick = pickLaneAndTime(mx, my);
     if (!pick) return;
 
-    // если случайно уехали в другой лейн, держим исходный
     mousePlace.t1 = pick.time;
   });
 
@@ -1252,7 +1745,6 @@
     mousePlace.lane = -1;
   });
 
-  // колесо: скроллим по времени
   canvas.addEventListener("wheel", (e) => {
     if (!audioBuffer) return;
     if (!editorActive) return;
@@ -1260,20 +1752,45 @@
     e.preventDefault();
 
     const t = getTrackTime();
-
-    // wheel в пикселях -> секунды (привязка к скорости визуального скролла)
     const sens = 1.15;
-    const dt = (e.deltaY / SCROLL_SPEED_PX_PER_SEC) * sens;
-
+    
+    // нормальный режим: колесо вверх = время вперед
+    // инвертированный: колесо вверх = время назад
+    let delta = e.deltaY;
+    if (editorSettings.wheelDirection === 'inverted') {
+      delta = -delta;
+    }
+    const dt = (delta / SCROLL_SPEED_PX_PER_SEC) * sens;
     let next = t + dt;
 
-    // если snap включен, то фиксируем на сетку (приятнее для ровных чартиков)
     if (getSnapStep() > 0){
       next = snapTime(next);
     }
 
     setTrackTime(next);
-  }, { passive:false });
+  }, { passive: false });
+
+  canvas.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    canvas.style.outline = '2px solid var(--accent)';
+  });
+
+  canvas.addEventListener('dragleave', () => {
+    canvas.style.outline = '';
+  });
+
+  canvas.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    canvas.style.outline = '';
+    
+    const file = e.dataTransfer.files[0];
+    if (file && (file.type.includes('audio') || file.name.match(/\.(mp3|ogg|flac|wav|m4a|aac|wma)$/i))) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      audioFile.files = dt.files;
+      audioFile.dispatchEvent(new Event('change'));
+    }
+  });
 
   audioFile.addEventListener("change", async () => {
     const file = audioFile.files && audioFile.files[0];
@@ -1283,7 +1800,7 @@
       await loadAudio(file);
     }catch (err){
       console.error(err);
-      alert("Couldn't decode audio. Try another .ogg/.wav (or convert to WAV).");
+      alert("Couldn't decode audio. Try another file format.");
     }
   });
 
@@ -1292,6 +1809,13 @@
   stopBtn.addEventListener("click", () => {
     stopPlayback(false);
     setTrackTime(0);
+  });
+
+  playSpeed.addEventListener("change", () => {
+    if (isPlaying) {
+      stopPlayback(true);
+      startPlayback();
+    }
   });
 
   exportBtn.addEventListener("click", exportSongJson);
@@ -1303,14 +1827,19 @@
     updateStatsUI();
   });
 
-  rateSel.addEventListener("change", () => {
-    if (isPlaying){
-      stopPlayback(true);
-      startPlayback();
-    } else {
-      playRate = parseFloat(rateSel.value) || 1;
-      updateModeLabel();
+  quantizeBtn.addEventListener("click", () => {
+    const step = getSnapStep();
+    if (step <= 0) {
+      alert('Set BPM and snap first!');
+      return;
     }
+    
+    pushUndo();
+    notes = notes.map(n => ({
+      ...n,
+      time: snapTime(n.time)
+    }));
+    sortNotes();
   });
 
   scrub.addEventListener("input", () => {
@@ -1318,8 +1847,8 @@
     setTrackTime(t);
   });
 
-  // импорт/экспорт json
   importBtn.addEventListener("click", () => importFile.click());
+
   importFile.addEventListener("change", async () => {
     const f = importFile.files && importFile.files[0];
     if (!f) return;
@@ -1329,11 +1858,158 @@
     importFile.value = "";
   });
 
+  homeButton.addEventListener("click", () => {
+    if (confirm('Reset to new chart? Unsaved changes will be lost.')) {
+      notes = [];
+      titleInput.value = '';
+      artistInput.value = '';
+      bpmInput.value = '';
+      difficultyInput.value = '3';
+      leadInInput.value = '1.00';
+      audioFile.value = '';
+      enableControls(false);
+      updateStatsUI();
+    }
+  });
+
+  // модалка настроек
+  settingsBtn.addEventListener("click", () => {
+    settingsModal.classList.add("active");
+    updateSettingsUI(); // обновляем UI перед показом
+  });
+
+  closeSettingsBtn.addEventListener("click", () => {
+    settingsModal.classList.remove("active");
+  });
+
+  settingsModal.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+      settingsModal.classList.remove("active");
+    }
+  });
+
+  // обработчики настроек
+
+  document.querySelectorAll('.keybind-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const lane = parseInt(e.target.dataset.lane);
+      
+      if (listeningForLane === lane) {
+        listeningForLane = -1;
+        e.target.style.background = '';
+        return;
+      }
+      
+      document.querySelectorAll('.keybind-btn').forEach(b => {
+        b.style.background = '';
+      });
+      
+      listeningForLane = lane;
+      e.target.style.background = 'rgba(106,166,255,0.3)';
+      e.target.textContent = 'Press any key...';
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (listeningForLane !== -1) {
+      e.preventDefault();
+      
+      const keyCode = e.code;
+      
+      if (keyCode.startsWith('Key') || keyCode === 'Space' || keyCode.startsWith('Digit')) {
+        editorSettings.keybinds[listeningForLane] = keyCode;
+        updateSettingsUI();
+        saveSettings();
+        
+        listeningForLane = -1;
+        document.querySelectorAll('.keybind-btn').forEach(b => {
+          b.style.background = '';
+        });
+      }
+    }
+  });
+
+  document.getElementById('noteSpeed')?.addEventListener('input', (e) => {
+    editorSettings.noteSpeed = parseInt(e.target.value);
+    document.getElementById('speedValue').textContent = `${editorSettings.noteSpeed}px/s`;
+    saveSettings();
+  });
+
+  document.getElementById('scrollDir')?.addEventListener('change', (e) => {
+    editorSettings.scrollDirection = e.target.value;
+    saveSettings();
+  });
+
+  document.getElementById('wheelDir')?.addEventListener('change', (e) => {
+    editorSettings.wheelDirection = e.target.value;
+    saveSettings();
+  });
+
+  document.getElementById('audioOffset')?.addEventListener('input', (e) => {
+    editorSettings.audioOffset = parseInt(e.target.value);
+    document.getElementById('offsetValue').textContent = `${editorSettings.audioOffset}ms`;
+    saveSettings();
+  });
+
+  document.getElementById('hitlinePos')?.addEventListener('input', (e) => {
+    editorSettings.hitlinePos = parseFloat(e.target.value);
+    HITLINE_Y_FRAC = editorSettings.scrollDirection === 'up' 
+      ? 1 - editorSettings.hitlinePos 
+      : editorSettings.hitlinePos;
+    saveSettings();
+  });
+
+  document.getElementById('resetSettingsBtn')?.addEventListener('click', () => {
+    editorSettings = {
+      keybinds: ['KeyS', 'KeyD', 'KeyJ', 'KeyK'],
+      noteSpeed: 520,
+      scrollDirection: 'down',
+      wheelDirection: 'normal',
+      hitlinePos: 0.78,
+      audioOffset: 0
+    };
+    updateSettingsUI();
+    saveSettings();
+  });
+
+  document.getElementById('exportSettingsBtn')?.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(editorSettings, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'terrariff_editor_settings.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  document.getElementById('importSettingsBtn')?.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const text = await file.text();
+      try {
+        const imported = JSON.parse(text);
+        editorSettings = { ...editorSettings, ...imported };
+        updateSettingsUI();
+        saveSettings();
+      } catch (err) {
+        alert('Invalid settings file!');
+      }
+    };
+    
+    input.click();
+  });
+
+  // инициализация
   enableControls(false);
+  loadSettings();
+  loadAutoSave();
   requestAnimationFrame(draw);
 })();
 </script>
 </body>
 </html>
-
-
