@@ -1,340 +1,739 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>TerraRiff</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TerraRiff</title>
+  <style>
+    /* переменные */
+    :root {
+      --bg: #0b0b10;
+      --surface: rgba(18, 18, 26, 0.85);
+      --surface-solid: #12121a;
+      --text: #f0f0fa;
+      --text-muted: #b0b0c8;
+      --accent: #ff6b6b;
+      --accent-glow: rgba(255, 107, 107, 0.3);
+      --accent-secondary: #ffd93d;
+      --border-light: rgba(255, 255, 255, 0.06);
+      --border-glow: #5a3a3a;
+      --radius-card: 24px;
+      --radius-element: 14px;
+      --shadow-heavy: 0 20px 40px rgba(0, 0, 0, 0.6);
+      --container-width: 1200px;
+      --transition: all 0.2s ease;
+    }
 
-<style>
-  :root{
-    --bg:#0b0b0f;
-    --text:#eaeaf2;
-    --muted:#a7a7b6;
-    --line:#232335;
-    --accent:#6aa6ff;
-    --shadow: rgba(0,0,0,.45);
+    /* резет и база */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-    --container:1120px;
-    --radius:16px;
-  }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
 
-  *{ box-sizing:border-box; }
-  body{
-    margin:0;
-    font-family:system-ui, Segoe UI, Roboto, Arial;
-    color:var(--text);
-    background:var(--bg);
-  }
+    /* лэйаут */
+    .container {
+      max-width: var(--container-width);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
 
-  /* контейнер по центру */
-  .container{
-    max-width:var(--container);
-    margin:0 auto;
-    padding:14px 20px;
-  }
+    /* хэдер */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(11, 11, 16, 0.7);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-light);
+      padding: 12px 0;
+    }
 
-  /* верхняя панель */
-  header{
-    position:sticky;
-    top:0;
-    z-index:50;
-    backdrop-filter: blur(10px);
-    background:rgba(11,11,15,.7);
-    border-bottom:1px solid var(--line);
-  }
-  .brand h1{
-    margin:0;
-    font-size:14px;
-    text-transform:uppercase;
-    color:var(--muted);
-    letter-spacing:.6px;
-    font-weight:900;
-  }
-  .brand small{ font-size:12px; color:var(--muted); }
+    .header-content {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
 
-  /* общая карточка */
-  .card{
-    background:rgba(18,18,26,.82);
-    backdrop-filter: blur(10px);
-    border:1px solid var(--line);
-    border-radius:var(--radius);
-    box-shadow: 0 16px 40px var(--shadow);
-  }
+    .logo-area {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
 
-  /* здесь фон + контент поверх */
-  .hero{
-    position:relative;
-    min-height:min(82vh, 820px);
-    overflow:hidden;
-  }
+    .logo-text {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
 
-  /* фон гифка */
-  .hero__bg{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    filter: blur(4px) brightness(.55) saturate(.9);
-    transform: scale(1.04);
-    z-index:0;
-  }
+    .badge {
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(255, 107, 107, 0.15);
+      padding: 4px 10px;
+      border-radius: 40px;
+      border: 1px solid rgba(255, 107, 107, 0.3);
+      color: #ffaaaa;
+      letter-spacing: 0.3px;
+    }
 
-  /* это затемнение, чтобы текст читался на фоне */
-  .hero::after{
-    content:"";
-    position:absolute;
-    inset:0;
-    background: linear-gradient(to bottom, rgba(11,11,15,.30), rgba(11,11,15,.82));
-    z-index:1;
-  }
+    .tagline {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
 
-  /* это раскладка: слева главная карточка, справа сайдбар */
-  .hero__inner{
-    position:relative;
-    z-index:2;
+    /* геройки */
+    .hero {
+      position: relative;
+      min-height: 85vh;
+      display: flex;
+      align-items: center;
+      isolation: isolate;
+    }
 
-    max-width:var(--container);
-    margin:0 auto;
-    padding:40px 20px;
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
 
-    display:grid;
-    grid-template-columns: 1fr 360px;
-    gap:16px;
-    align-items:stretch;
-  }
+    .hero-bg img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(0.4) saturate(1.3) blur(3px);
+      transform: scale(1.02);
+    }
 
-  /* левая карточка */
-  .main{
-    padding:22px;
-    display:flex;
-    flex-direction:column;
-    gap:14px;
-  }
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 70% 30%, rgba(80, 30, 30, 0.5) 0%, rgba(8, 8, 16, 0.95) 100%);
+      z-index: 1;
+    }
 
-  /* правый сайдбар: 3 карточки */
-  .side{
-    height:100%;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-  }
-  .side__card{
-    padding:12px;
-    flex:1;        /* делим высоту 1:1:1 */
-    min-height:0;
-    display:flex;
-    flex-direction:column;
-  }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      padding: 40px 0;
+    }
 
-  /* типографика */
-  .kicker{
-    font-size:12px;
-    color:var(--muted);
-    text-transform:uppercase;
-    letter-spacing:.6px;
-    font-weight:800;
-  }
-  .title{
-    font-size:34px;
-    font-weight:900;
-    line-height:1.08;
-  }
-  .subtitle{
-    font-size:14px;
-    color:var(--muted);
-    line-height:1.6;
-  }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 28px;
+      align-items: start;
+    }
 
-  .sectionTitle{
-    margin:0 0 6px;
-    font-size:11px;
-    text-transform:uppercase;
-    color:var(--muted);
-    letter-spacing:.55px;
-    font-weight:900;
-  }
+    /* карточки */
+    .glass-card {
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-heavy);
+      padding: 28px;
+    }
 
-  .list{
-    margin:0;
-    padding-left:16px;
-    font-size:13px;
-    line-height:1.55;
-  }
-  .side__card .list{
-    padding-left:14px;
-    font-size:12px;
-    line-height:1.45;
-  }
+    .glass-card-highlight {
+      border-color: rgba(255, 107, 107, 0.4);
+      box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.15), var(--shadow-heavy);
+    }
 
-  /* кнопки */
-  .ctaGrid{
-    margin-top:8px;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    max-width:720px;
-  }
+    /* типография */
+    .overline {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
 
-  .cta{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:12px;
+    h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 20px;
+      background: linear-gradient(to right, #fff, #ffb8b8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
 
-    padding:14px;
-    border-radius:12px;
+    .lead {
+      font-size: 1.15rem;
+      color: #d0d0e0;
+      margin-bottom: 24px;
+      max-width: 95%;
+    }
 
-    border:1px solid var(--line);
-    background:rgba(15,15,22,.6);
+    .feature-list {
+      list-style: none;
+      margin-bottom: 32px;
+    }
 
-    text-decoration:none;
-    color:var(--text);
-    transition:.15s;
-  }
-  .cta:hover{ transform:translateY(-2px); filter:brightness(1.1); }
+    .feature-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 1rem;
+      color: #e8e8f5;
+    }
 
-  .cta--main{ border-color:var(--accent); }
+    .feature-list li::before {
+      content: "⚡";
+      color: var(--accent-secondary);
+      font-size: 1.2rem;
+    }
 
-  .cta__left strong{ font-size:14px; }
-  .cta__left span{ font-size:12px; color:var(--muted); }
+    /* кнопочки */
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
 
-  .cta__tag{
-    font-size:12px;
-    opacity:.75;
-    padding:6px 10px;
-    border-radius:999px;
-    border:1px solid rgba(255,255,255,.10);
-    background:rgba(0,0,0,.18);
-    white-space:nowrap;
-  }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: rgba(30, 20, 30, 0.7);
+      border: 1px solid var(--border-light);
+      border-radius: 18px;
+      text-decoration: none;
+      color: var(--text);
+      transition: var(--transition);
+      backdrop-filter: blur(8px);
+    }
 
-  /* нижняя панель */
-  footer{
-    width:100%;
-    border-top:1px solid var(--line);
-  }
-  .footerRow{
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-    flex-wrap:wrap;
-    color:var(--muted);
-    font-size:12px;
-  }
+    .btn:hover {
+      background: rgba(60, 30, 40, 0.8);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 107, 107, 0.15);
+    }
 
-  /* мобилка */
-  @media (max-width: 980px){
-    .hero__inner{ grid-template-columns: 1fr; align-items:start; }
-    .side{ height:auto; }
-    .side__card{ flex:unset; }
-  }
-</style>
+    .btn-primary {
+      background: rgba(200, 60, 60, 0.2);
+      border-color: rgba(255, 107, 107, 0.5);
+    }
+
+    .btn-primary:hover {
+      background: rgba(220, 70, 70, 0.3);
+    }
+
+    .btn-text strong {
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .btn-text span {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .btn-badge {
+      background: rgba(255, 107, 107, 0.15);
+      padding: 8px 16px;
+      border-radius: 40px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1px solid rgba(255, 107, 107, 0.2);
+      color: #ffaaaa;
+    }
+
+    /* чейнджлог */
+    .changelog-card {
+      padding: 22px;
+      height: fit-content;
+    }
+
+    .changelog-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .changelog-header h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .changelog-header .icon {
+      font-size: 1.8rem;
+    }
+
+    .changelog-filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-light);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-btn:hover {
+      background: rgba(255, 107, 107, 0.15);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .filter-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    .changelog-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .changelog-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .changelog-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px;
+    }
+
+    .changelog-list::-webkit-scrollbar-thumb {
+      background: var(--accent);
+      border-radius: 10px;
+    }
+
+    .changelog-item {
+      border-radius: 12px;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .changelog-header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .changelog-item:hover .changelog-header-row {
+      background: rgba(255, 107, 107, 0.08);
+      border-color: rgba(255, 107, 107, 0.3);
+    }
+
+    .changelog-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-width: 70px;
+      text-align: center;
+    }
+
+    .badge-mod {
+      background: rgba(255, 107, 107, 0.2);
+      color: #ff8a8a;
+      border: 1px solid rgba(255, 107, 107, 0.3);
+    }
+
+    .badge-editor {
+      background: rgba(255, 217, 61, 0.2);
+      color: #ffe08a;
+      border: 1px solid rgba(255, 217, 61, 0.3);
+    }
+
+    .badge-site {
+      background: rgba(106, 166, 255, 0.2);
+      color: #8ab4ff;
+      border: 1px solid rgba(106, 166, 255, 0.3);
+    }
+
+    .changelog-version {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .changelog-date {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .changelog-expand {
+      font-size: 1rem;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .changelog-item.expanded .changelog-expand {
+      transform: rotate(90deg);
+    }
+
+    .changelog-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.2s ease;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0 0 10px 10px;
+      margin-top: -4px;
+    }
+
+    .changelog-item.expanded .changelog-content {
+      max-height: 300px;
+      padding: 16px 14px;
+      border: 1px solid var(--border-light);
+      border-top: none;
+    }
+
+    .changelog-description {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .changelog-description ul {
+      margin-top: 8px;
+      padding-left: 20px;
+    }
+
+    .changelog-description li {
+      margin-bottom: 4px;
+    }
+
+    /* футер */
+    .site-footer {
+      margin-top: 60px;
+      border-top: 1px solid var(--border-light);
+      padding: 28px 0;
+      backdrop-filter: blur(8px);
+      background: rgba(11, 11, 16, 0.5);
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .footer-inner a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* адаптивность */
+    @media (max-width: 900px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      h1 {
+        font-size: 2.8rem;
+      }
+      .lead {
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 0 16px;
+      }
+      .glass-card {
+        padding: 20px;
+      }
+      h1 {
+        font-size: 2.2rem;
+      }
+      .changelog-header-row {
+        flex-wrap: wrap;
+      }
+      .changelog-date {
+        margin-left: 0;
+        width: 100%;
+        padding-left: 82px;
+      }
+    }
+  </style>
 </head>
-
 <body>
 
-<header>
-  <div class="container">
-    <div class="brand">
-      <h1>TerraRiff</h1>
-      <small>Terraria mod • rhythm gameplay inside the world</small>
-    </div>
-  </div>
+<header class="site-header">
+  <div class="container header-content">
+    <div class="logo-area">
+      <span class="logo-text">TerraRiff</span>
 </header>
 
-<section class="hero">
-  <!-- фон -->
-  <img class="hero__bg" src="./preview.gif" alt="">
+<main>
+  <section class="hero">
+    <div class="hero-bg">
+      <img src="./preview.gif" alt="TerraRiff gameplay preview">
+    </div>
+    <div class="hero-overlay"></div>
 
-  <div class="hero__inner">
+    <div class="hero-content container">
+      <div class="hero-grid">
+        <!-- основная карта -->
+        <div class="glass-card glass-card-highlight">
+          <div class="overline">About the mod</div>
+          <h1>A rhythm-game<br>inside Terraria.</h1>
+          <p class="lead">
+            TerraRiff is a mod that adds a fully playable rhythm-game system to your Terraria world.
+            Shred through songs, beat your high scores and share them with friends!
+            Play built-in bangers, or make your own with our chart editor!
+          </p>
+          
+          <ul class="feature-list">
+            <li>6 built‑in songs + full custom song support</li>
+            <li>Fully configurable controls</li>
+            <li>Persistent playing records</li>
+          </ul>
 
-    <div class="card main">
-      <div class="kicker">About TerraRiff</div>
-      <div class="title">TerraRiff</div>
-
-      <div class="subtitle">
-        TerraRiff is a rhythm game mod for Terraria.<br><br>
-        It adds a fully playable 4-lane rhythm game inside Terraria.
-      </div>
-
-      <ul class="list">
-        <li>3 built-in songs</li>
-        <li>Customizable controls</li>
-        <li>Chart, share and play your own custom songs</li>
-      </ul>
-
-      <div class="subtitle">TerraRiff is actively developed and expanding.</div>
-
-      <div class="ctaGrid">
-        <a class="cta cta--main" href="./editor.html">
-          <div class="cta__left">
-            <strong>Open Chart Editor</strong><br>
-            <span>Create and edit charts in the browser</span>
+          <div class="button-group">
+            <a href="./editor.html" class="btn btn-primary">
+              <span class="btn-text">
+                <strong>🎸 Chart Editor</strong>
+                <span>Chart your own tracks here!</span>
+              </span>
+              <span class="btn-badge">EDITOR</span>
+            </a>
+            <a href="https://discord.gg/HNMZvwuCAq" target="_blank" rel="noopener" class="btn">
+              <span class="btn-text">
+                <strong>📣 Discord Server</strong>
+                <span>View updates, share your charts, and chat with people!</span>
+              </span>
+              <span class="btn-badge">DISCORD</span>
+            </a>
+            <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3664955182" target="_blank" rel="noopener" class="btn">
+              <span class="btn-text">
+                <strong>⚙️ Steam Workshop</strong>
+                <span>Install the mod with just one click!</span>
+              </span>
+              <span class="btn-badge">STEAM</span>
+            </a>
           </div>
-          <div class="cta__tag">Editor</div>
-        </a>
+        </div>
 
-        <a class="cta" href="https://discord.gg/HNMZvwuCAq" target="_blank" rel="noopener">
-          <div class="cta__left">
-            <strong>Join Discord</strong><br>
-            <span>Updates, feedback, and chart-sharing</span>
+        <!-- чейнджлог -->
+        <div class="glass-card changelog-card">
+          <div class="changelog-header">
+            <span class="icon"></span>
+            <h2>What's new</h2>
           </div>
-          <div class="cta__tag">Discord</div>
-        </a>
+          
+          <div class="changelog-filters">
+            <button class="filter-btn active" data-filter="all">🌐 All</button>
+            <button class="filter-btn" data-filter="mod">🎸 Mod</button>
+            <button class="filter-btn" data-filter="editor">✏️ Editor</button>
+            <button class="filter-btn" data-filter="site">📖 Site</button>
+          </div>
 
-        <a class="cta" href="https://steamcommunity.com/sharedfiles/filedetails/?id=3664955182" target="_blank" rel="noopener">
-          <div class="cta__left">
-            <strong>Steam Workshop</strong><br>
-            <span>Subscribe and install the mod</span>
+          <div class="changelog-list" id="changelogList">
+            <!-- лист дальше внизу -->
           </div>
-          <div class="cta__tag">Steam</div>
-        </a>
+        </div>
       </div>
     </div>
+  </section>
+</main>
 
-    <div class="side">
-      <div class="card side__card">
-        <div class="sectionTitle">What it includes</div>
-        <ul class="list">
-          <li>4-lane rhythm-game</li>
-          <li>Built-in songs + full custom song support</li>
-          <li>Automatically saving records</li>
-        </ul>
-      </div>
-
-      <div class="card side__card">
-        <div class="sectionTitle">What's in the development</div>
-        <ul class="list">
-          <li>More built-in songs</li>
-          <li>Visual polish and cosmetics</li>
-          <li>Editor improvements</li>
-          <li>Many, many more stuff</li>
-        </ul>
-      </div>
-
-      <div class="card side__card">
-        <div class="sectionTitle">Things to remember</div>
-        <ul class="list">
-          <li>The mod is very raw</li>
-          <li>Feedback is very welcome</li>
-          <li>It will expand in the future</li>
-          <li>Have fun!!!</li>
-        </ul>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<footer>
-  <div class="container">
-    <div class="footerRow">
-      <div>Made by Wurper</div>
-      <div>TerraRiff • v0.6</div>
-    </div>
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div>🎸 TerraRiff, made with love by <a href="#">Wurper</a></div>
+    <div>Website version 0.7</div>
   </div>
 </footer>
+
+<script>
+  (function() {
+    // инфа чейнджлога
+    const changelogData = [
+    {
+        type: 'mod',
+        version: 'v1.1',
+        date: '2026-04-12',
+        description: `
+          <strong>First major update</strong><br>
+          <ul>
+            <li>3 NEW songs!</li>
+            <li>Added guitar skins!</li>
+            <li>Fixed a ton of bugs and crashes</li>
+          </ul>
+        `
+      },
+
+      {
+        type: 'editor',
+        version: 'v0.7',
+        date: '2026-04-12',
+        description: `
+          <strong>Editor revamp</strong><br>
+          <ul>
+            <li>Complete redesign</li>
+            <li>Cool background</li>
+            <li>Huge thanks to Zirael for helping me</li>
+          </ul>
+        `
+      },
+
+      {
+        type: 'site',
+        version: 'v0.7',
+        date: '2026-04-12',
+        description: `
+          <strong>Full website revamp</strong><br>
+          <ul>
+            <li>Complete redesign</li>
+            <li>Changelog section (you're looking right at it!)</li>
+            <li>Huge thanks to Zirael for helping me</li>
+          </ul>
+        `
+      },
+    ];
+
+    const changelogList = document.getElementById('changelogList');
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    let currentFilter = 'all';
+
+    // функция для переключения элементов
+    function toggleChangelogItem(item) {
+      const isExpanded = item.classList.contains('expanded');
+      
+      // закрытие элементов
+      document.querySelectorAll('.changelog-item').forEach(el => {
+        el.classList.remove('expanded');
+      });
+      
+      // фейлсейв
+      if (!isExpanded) {
+        item.classList.add('expanded');
+      }
+    }
+
+    // рендер списка чейнджлога
+    function renderChangelog(filter) {
+      const filteredData = filter === 'all' 
+        ? changelogData 
+        : changelogData.filter(item => item.type === filter);
+
+      const html = filteredData.map(item => {
+        const badgeClass = 
+          item.type === 'mod' ? 'badge-mod' : 
+          item.type === 'editor' ? 'badge-editor' : 
+          'badge-site';
+        
+        const badgeText = 
+          item.type === 'mod' ? '🎸 MOD' : 
+          item.type === 'editor' ? '✏️ EDITOR' : 
+          '🌐 SITE';
+
+        return `
+          <div class="changelog-item" data-type="${item.type}">
+            <div class="changelog-header-row">
+              <span class="changelog-badge ${badgeClass}">${badgeText}</span>
+              <span class="changelog-version">${item.version}</span>
+              <span class="changelog-date">${item.date}</span>
+              <span class="changelog-expand">▶</span>
+            </div>
+            <div class="changelog-content">
+              <div class="changelog-description">
+                ${item.description}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      changelogList.innerHTML = html;
+
+      // навешиваем обработчики клика на заголовки
+      document.querySelectorAll('.changelog-header-row').forEach(header => {
+        header.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const item = header.closest('.changelog-item');
+          toggleChangelogItem(item);
+        });
+      });
+    }
+
+    // хэндлеры фильтров
+    filterButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filter = btn.dataset.filter;
+        currentFilter = filter;
+        
+        filterButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        renderChangelog(filter);
+      });
+    });
+
+    // рендер чейнджлога
+    renderChangelog('all');
+
+    // раскрываем первый элемент по умолчанию
+    setTimeout(() => {
+      const firstItem = document.querySelector('.changelog-item');
+      if (firstItem) {
+        document.querySelectorAll('.changelog-item').forEach(el => el.classList.remove('expanded'));
+        // открываем первый
+        firstItem.classList.add('expanded');
+      }
+    }, 100);
+  })();
+</script>
 
 </body>
 </html>
